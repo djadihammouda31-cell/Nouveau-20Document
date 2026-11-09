@@ -1,0 +1,2437 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>ميزانيتي · My Budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { colors: { brand: {50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b',950:'#022c22'} }, fontFamily:{ ar:['Cairo','system-ui','sans-serif'], latin:['Inter','system-ui','sans-serif'], doc:['Amiri','Cairo','serif'] } } }
+}
+</script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  body { -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.3); border-radius: 9999px; }
+  html.dark ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.25); }
+  .glass { backdrop-filter: blur(14px); background: rgba(255,255,255,.82); }
+  html.dark .glass { background: rgba(15,23,42,.82); }
+  .card { transition: background .25s, border-color .25s, box-shadow .2s; }
+  .fade-in { animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .scale-in { animation: scaleIn .22s cubic-bezier(.16,1,.3,1); }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+  .chart-wrap { position: relative; height: 260px; }
+  @media (min-width: 1024px) { .chart-wrap { height: 320px; } }
+  .nav-active { color: #059669; }
+  html.dark .nav-active { color: #34d399; }
+  .bottom-nav-btn.active { color: #059669; }
+  html.dark .bottom-nav-btn.active { color: #34d399; }
+  .bottom-nav-btn.active::before { content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:28px; height:3px; border-radius:0 0 4px 4px; background:currentColor; }
+  .pattern-svg .p-dot { transition: fill .15s, stroke .15s, r .15s; }
+  .pattern-svg .p-dot.active { fill: #10b981; stroke: #059669; r: 22; }
+  .pattern-svg { touch-action: none; user-select: none; }
+  .numpad-btn { transition: background .1s, transform .1s; }
+  .numpad-btn:active { transform: scale(.94); background: rgba(16,185,129,.15); }
+  .notif-item { transition: background .15s; }
+  .notif-item:hover { background: rgba(0,0,0,.02); }
+  html.dark .notif-item:hover { background: rgba(255,255,255,.03); }
+  @media print {
+    @page { size: A4; margin: 10mm; }
+    body.printing > *:not(#modal-print) { display: none !important; }
+    body.printing #modal-print { position: static !important; background: #fff !important; padding: 0 !important; display: block !important; overflow: visible !important; }
+    body.printing #modal-print > div { box-shadow: none !important; max-width: none !important; margin: 0 !important; border-radius: 0 !important; }
+    body.printing .no-print { display: none !important; }
+    body.printing #printContent { padding: 0 !important; }
+    body.printing #printContent * { color: #000 !important; }
+  }
+  #printContent { font-family: 'Amiri', 'Cairo', serif; }
+  .doc-sign-line { border-bottom: 1.5px solid #334155; height: 55px; }
+  .stat-hero-badge { background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.05)); }
+</style>
+</head>
+<body class="font-ar bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen">
+
+<!-- Loading -->
+<div id="screen-loading" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+  <div class="flex flex-col items-center gap-4">
+    <div class="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-xl animate-pulse"><i data-lucide="wallet" class="w-8 h-8"></i></div>
+    <div class="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin"></div>
+  </div>
+</div>
+
+<!-- Setup -->
+<div id="screen-setup" class="hidden fixed inset-0 z-[90] bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+  <div class="min-h-full flex flex-col items-center justify-center p-5 py-10">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center mx-auto mb-3 shadow-xl">
+          <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-2xl font-bold mb-1" data-i18n="setupTitle">إعداد الحماية</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400" data-i18n="setupSub">أمّن بياناتك بكلمة مرور تختارها</p>
+      </div>
+      <div class="flex items-center justify-center gap-2 mb-6">
+        <div class="step-dot w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-bold" data-step="1">1</div>
+        <div class="w-8 h-px bg-slate-200 dark:bg-slate-700"></div>
+        <div class="step-dot w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-xs font-bold" data-step="2">2</div>
+        <div class="w-8 h-px bg-slate-200 dark:bg-slate-700"></div>
+        <div class="step-dot w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-xs font-bold" data-step="3">3</div>
+        <div class="w-8 h-px bg-slate-200 dark:bg-slate-700"></div>
+        <div class="step-dot w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-xs font-bold" data-step="4">4</div>
+      </div>
+      <div id="setupContent" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-6 shadow-xl"></div>
+      <p id="setupError" class="text-rose-500 text-sm text-center mt-3 hidden"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Unlock -->
+<div id="screen-unlock" class="hidden fixed inset-0 z-[90] bg-gradient-to-br from-slate-50 via-white to-brand-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-brand-950/20 overflow-y-auto">
+  <div class="min-h-full flex flex-col items-center justify-center p-5 py-10">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-6">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-brand-500/30">
+          <i data-lucide="lock" class="w-10 h-10"></i>
+        </div>
+        <h1 class="text-2xl font-bold mb-1" id="unlockName">ميزانيتي</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400" id="unlockSub">أدخل كلمة المرور للدخول</p>
+      </div>
+      <div id="unlockContent"></div>
+      <p id="unlockError" class="text-rose-500 text-sm text-center mt-3 hidden"></p>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" class="hidden min-h-screen pb-24 lg:pb-8">
+  <header class="glass sticky top-0 z-30 border-b border-slate-200/70 dark:border-slate-800/70">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm"><i data-lucide="wallet" class="w-5 h-5"></i></div>
+        <span class="font-bold text-lg hidden sm:inline" data-i18n="appName">ميزانيتي</span>
+      </div>
+      <nav class="hidden lg:flex items-center gap-1 mx-auto bg-slate-100/70 dark:bg-slate-800/50 p-1 rounded-2xl" id="desktopNav"></nav>
+      <div class="flex items-center gap-1 ms-auto">
+        <div class="relative">
+          <button onclick="toggleMenu('langMenu')" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="globe" class="w-5 h-5"></i></button>
+          <div id="langMenu" class="hidden absolute end-0 mt-2 w-40 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-40">
+            <button onclick="setLanguage('ar');toggleMenu('langMenu')" class="w-full text-start px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">العربية</button>
+            <button onclick="setLanguage('fr');toggleMenu('langMenu')" class="w-full text-start px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">Français</button>
+            <button onclick="setLanguage('en');toggleMenu('langMenu')" class="w-full text-start px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">English</button>
+          </div>
+        </div>
+        <button onclick="toggleTheme()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="sun" class="w-5 h-5 dark:hidden"></i><i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
+        </button>
+        <button onclick="openSettings()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="settings" class="w-5 h-5"></i></button>
+        <button onclick="openNotifs()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 relative">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span id="notifDot" class="hidden absolute top-1 end-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold ring-2 ring-white dark:ring-slate-950 flex items-center justify-center"></span>
+        </button>
+        <button onclick="lockApp()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800" title="Lock">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
+
+    <!-- FINANCE -->
+    <section id="view-finance" class="fade-in">
+      <div class="mb-6">
+        <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-2 flex-wrap">
+          <span data-i18n="greetHi">مرحباً،</span>
+          <button onclick="openNameModal()" class="group inline-flex items-center gap-1.5">
+            <span id="userNameDisplay" class="text-brand-700 dark:text-brand-400">صديقي</span>
+            <i data-lucide="pencil" class="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
+          </button>
+          <span>👋</span>
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm" data-i18n="greetSub">إليك نظرة سريعة على وضعك المالي.</p>
+      </div>
+
+      <div class="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-brand-950 text-white p-6 sm:p-8 shadow-2xl shadow-slate-900/30 relative overflow-hidden mb-5">
+        <div class="absolute -top-20 -end-20 w-80 h-80 bg-brand-500/20 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-24 -start-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-5">
+            <i data-lucide="bar-chart-big" class="w-5 h-5 text-brand-300"></i>
+            <h2 class="font-bold text-lg" data-i18n="positionTitle">المركز المالي</h2>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="stat-hero-badge rounded-2xl p-4 border border-white/10">
+              <div class="flex items-center gap-1.5 text-emerald-300 mb-1.5"><i data-lucide="wallet" class="w-4 h-4"></i><span class="text-xs font-medium" data-i18n="myCash">المبلغ الذي عندي</span></div>
+              <div class="text-xl sm:text-2xl font-extrabold" id="posCash">0</div>
+              <div class="text-[10px] text-white/50 mt-0.5" data-i18n="myCashSub">النقد المتوفر الآن</div>
+            </div>
+            <div class="stat-hero-badge rounded-2xl p-4 border border-white/10">
+              <div class="flex items-center gap-1.5 text-sky-300 mb-1.5"><i data-lucide="arrow-down-to-line" class="w-4 h-4"></i><span class="text-xs font-medium" data-i18n="myReceivable">مستحق لي</span></div>
+              <div class="text-xl sm:text-2xl font-extrabold text-sky-200" id="posReceivable">0</div>
+              <div class="text-[10px] text-white/50 mt-0.5" data-i18n="myReceivableSub">أموال أقرضتها</div>
+            </div>
+            <div class="stat-hero-badge rounded-2xl p-4 border border-white/10">
+              <div class="flex items-center gap-1.5 text-rose-300 mb-1.5"><i data-lucide="arrow-up-from-line" class="w-4 h-4"></i><span class="text-xs font-medium" data-i18n="myPayable">ديون عليّ</span></div>
+              <div class="text-xl sm:text-2xl font-extrabold text-rose-200" id="posPayable">0</div>
+              <div class="text-[10px] text-white/50 mt-0.5" data-i18n="myPayableSub">ما يجب أن أسدده</div>
+            </div>
+            <div class="stat-hero-badge rounded-2xl p-4 border border-brand-400/40 bg-brand-500/10">
+              <div class="flex items-center gap-1.5 text-brand-200 mb-1.5"><i data-lucide="gem" class="w-4 h-4"></i><span class="text-xs font-medium" data-i18n="netWorth">صافي الثروة</span></div>
+              <div class="text-xl sm:text-2xl font-extrabold text-brand-200" id="posNetWorth">0</div>
+              <div class="text-[10px] text-white/60 mt-0.5" data-i18n="netWorthSub">= النقد + مستحق لي − ديون عليّ</div>
+            </div>
+          </div>
+          <div class="mt-4 rounded-2xl bg-white text-slate-900 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center shrink-0"><i data-lucide="shield-check" class="w-6 h-6"></i></div>
+              <div>
+                <div class="text-xs text-slate-500 font-medium" data-i18n="remainingAfterDebts">الباقي بعد سداد ديوني</div>
+                <div class="text-[11px] text-slate-400" id="remainingFormula">= ما عندي − ما عليّ</div>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-brand-700" id="posRemaining">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="totalIncome">إجمالي المداخيل</p>
+          <p class="font-bold text-lg mt-0.5 text-emerald-600 dark:text-emerald-400" id="kpiIncome">—</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-2"><i data-lucide="trending-down" class="w-4 h-4"></i></div>
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="totalExpenses">إجمالي المصاريف</p>
+          <p class="font-bold text-lg mt-0.5 text-rose-600 dark:text-rose-400" id="kpiExpense">—</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2"><i data-lucide="activity" class="w-4 h-4"></i></div>
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="monthlyNet">صافي الشهر</p>
+          <p class="font-bold text-lg mt-0.5" id="kpiMonthlyNet">—</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2"><i data-lucide="percent" class="w-4 h-4"></i></div>
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="savingsRate">نسبة الادخار</p>
+          <p class="font-bold text-lg mt-0.5" id="kpiSavingsRate">—</p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+        <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="list" class="w-5 h-5 text-brand-600"></i><span data-i18n="tabTransactions">العمليات</span></h2>
+        <div class="flex-1 sm:max-w-xs sm:ms-auto flex gap-2">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-slate-400"></i>
+            <input id="searchInput" oninput="onSearch(this.value)" placeholder="بحث..." data-i18n-ph="searchPh" class="w-full ps-9 pe-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+          </div>
+          <button onclick="openTxModal('expense')" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm flex items-center gap-1.5 shadow-sm shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="add">إضافة</span>
+          </button>
+        </div>
+      </div>
+      <div class="mt-4 card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 overflow-hidden">
+        <div id="txList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+      </div>
+    </section>
+
+    <!-- DEBTS -->
+    <section id="view-debts" class="hidden fade-in">
+      <div class="mb-6 flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-2"><i data-lucide="hand-coins" class="w-7 h-7 text-brand-600"></i><span data-i18n="debtsTitle">الديون</span></h1>
+          <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm" data-i18n="debtsSub">إدارة ديونك ودفعاتك ومستنداتك.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="lockDebts()" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium flex items-center gap-2">
+            <i data-lucide="lock" class="w-4 h-4"></i><span data-i18n="lock">قفل</span>
+          </button>
+          <button onclick="openDebtModal()" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm flex items-center gap-2 shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="addDebt">إضافة دين</span>
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="activeDebts">ديون نشطة</p>
+          <p class="font-bold text-2xl mt-1" id="dsActive">0</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="totalOwedToMe">مستحق لي</p>
+          <p class="font-bold text-xl mt-1 text-sky-600 dark:text-sky-400" id="dsOwedToMe">0</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="totalIOwe">ديون عليّ</p>
+          <p class="font-bold text-xl mt-1 text-rose-600 dark:text-rose-400" id="dsIOwe">0</p>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400" data-i18n="overdueCount">متأخرة</p>
+          <p class="font-bold text-2xl mt-1 text-rose-600 dark:text-rose-400" id="dsOverdue">0</p>
+        </div>
+      </div>
+      <div class="flex gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-4 overflow-x-auto no-scrollbar w-fit">
+        <button data-debt-filter="all" onclick="setDebtFilter('all')" class="debt-filter-btn px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap" data-i18n="filterAll">الكل</button>
+        <button data-debt-filter="i_owe" onclick="setDebtFilter('i_owe')" class="debt-filter-btn px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap" data-i18n="filterIOwe">عليّ</button>
+        <button data-debt-filter="owed_to_me" onclick="setDebtFilter('owed_to_me')" class="debt-filter-btn px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap" data-i18n="filterOwedToMe">لي</button>
+        <button data-debt-filter="overdue" onclick="setDebtFilter('overdue')" class="debt-filter-btn px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap" data-i18n="filterOverdue">متأخرة</button>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4" id="debtList"></div>
+    </section>
+
+    <!-- LEAVE -->
+    <section id="view-leave" class="hidden fade-in">
+      <div class="mb-6 flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-bold" data-i18n="leaveTitle">العطل والإجازات</h1>
+          <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm" data-i18n="leaveSub">تابع رصيد إجازاتك السنوية.</p>
+        </div>
+        <button onclick="openLeaveModal()" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm flex items-center gap-2 shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="addLeave">إضافة إجازة</span>
+        </button>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-700 to-purple-900 text-white p-6 sm:p-8 shadow-xl shadow-violet-900/20 relative overflow-hidden">
+          <div class="absolute -top-16 -end-16 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
+          <div class="relative">
+            <div class="flex items-center gap-2 text-white/70 mb-3"><i data-lucide="palmtree" class="w-5 h-5"></i><span class="text-sm font-medium" data-i18n="annualLeave">الإجازة السنوية</span></div>
+            <div class="flex items-end gap-3 mb-4"><div class="text-5xl font-extrabold" id="leaveRemaining">0</div><div class="text-white/80 mb-2" data-i18n="daysRemaining">يوم متبقٍ</div></div>
+            <div class="w-full h-2.5 rounded-full bg-white/20 overflow-hidden"><div id="leaveProgress" class="h-full bg-white rounded-full transition-all" style="width:0%"></div></div>
+            <div class="flex justify-between text-sm mt-2 text-white/80">
+              <span><span data-i18n="usedDays">المستهلك</span>: <strong id="leaveUsed">0</strong></span>
+              <span><span data-i18n="totalDays">الرصيد الكلي</span>: <strong id="leaveTotal">30</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-6 flex flex-col items-center justify-center gap-2 min-h-[180px]">
+          <div class="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center"><i data-lucide="calendar-plus" class="w-7 h-7"></i></div>
+          <div class="text-center"><p class="font-bold text-2xl" id="leaveUpcomingCount">0</p><p class="text-sm text-slate-500 dark:text-slate-400" data-i18n="upcomingLeaves">القادمة</p></div>
+        </div>
+      </div>
+      <div class="mt-6 grid lg:grid-cols-2 gap-4">
+        <div><h2 class="font-bold text-lg mb-3 flex items-center gap-2"><i data-lucide="calendar-clock" class="w-5 h-5 text-brand-600"></i><span data-i18n="upcomingLeaves">القادمة</span></h2><div id="leaveUpcoming" class="space-y-3"></div></div>
+        <div><h2 class="font-bold text-lg mb-3 flex items-center gap-2"><i data-lucide="calendar-check" class="w-5 h-5 text-slate-400"></i><span data-i18n="pastLeaves">المنتهية</span></h2><div id="leavePast" class="space-y-3"></div></div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section id="view-stats" class="hidden fade-in">
+      <div class="flex items-start justify-between flex-wrap gap-3 mb-6">
+        <div><h1 class="text-2xl sm:text-3xl font-bold" data-i18n="statsTitle">الإحصائيات</h1><p class="text-slate-500 dark:text-slate-400 mt-1 text-sm" data-i18n="statsSub">نظرة تحليلية على أموالك.</p></div>
+        <div class="flex gap-2">
+          <button onclick="exportCSV()" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i><span>CSV</span></button>
+          <button onclick="exportJSON()" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i><span>JSON</span></button>
+        </div>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-5">
+          <h3 class="font-bold mb-1" data-i18n="expensesByCategory">المصاريف حسب التصنيف</h3><p class="text-xs text-slate-500 dark:text-slate-400 mb-4" data-i18n="thisMonth">هذا الشهر</p>
+          <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+        </div>
+        <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-5">
+          <h3 class="font-bold mb-1" data-i18n="monthlyFlow">الحركة الشهرية</h3><p class="text-xs text-slate-500 dark:text-slate-400 mb-4" data-i18n="lastSixMonths">آخر 6 أشهر</p>
+          <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4" id="catSummary"></div>
+    </section>
+  </main>
+
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-20 glass border-t border-slate-200/70 dark:border-slate-800/70">
+    <div class="grid grid-cols-4 max-w-lg mx-auto" id="bottomNav"></div>
+  </nav>
+</div>
+
+<!-- MODALS -->
+
+<div id="modal-name" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" data-i18n="editName">تعديل الاسم</h3><button onclick="closeModal('modal-name')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <label class="block text-sm font-medium mb-1.5" data-i18n="yourName">اسمك</label>
+    <input id="nameInput" type="text" maxlength="40" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-lg font-semibold">
+    <div class="flex gap-2 mt-4"><button onclick="closeModal('modal-name')" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold" data-i18n="cancel">إلغاء</button><button onclick="saveName()" class="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button></div>
+  </div>
+</div>
+
+<div id="modal-tx" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" id="txModalTitle">إضافة</h3><button onclick="closeModal('modal-tx')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="setTxType('income')" id="txType-income" class="tx-type-btn py-3 rounded-xl border-2 transition text-sm font-semibold flex items-center justify-center gap-1.5"><i data-lucide="arrow-down-left" class="w-4 h-4"></i><span data-i18n="income">مدخول</span></button>
+        <button onclick="setTxType('expense')" id="txType-expense" class="tx-type-btn py-3 rounded-xl border-2 transition text-sm font-semibold flex items-center justify-center gap-1.5"><i data-lucide="arrow-up-right" class="w-4 h-4"></i><span data-i18n="expense">مصروف</span></button>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1.5" data-i18n="amount">المبلغ (د.ج)</label>
+        <input id="txAmount" type="number" min="1" step="any" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-lg font-bold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" placeholder="0">
+        <div class="flex gap-2 mt-2">
+          <button type="button" onclick="document.getElementById('txAmount').value=500" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">500</button>
+          <button type="button" onclick="document.getElementById('txAmount').value=1000" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">1,000</button>
+          <button type="button" onclick="document.getElementById('txAmount').value=5000" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">5,000</button>
+        </div>
+      </div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="category">التصنيف</label><select id="txCategory" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></select></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="date">التاريخ</label><input id="txDate" type="date" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="note">ملاحظة (اختياري)</label><input id="txNote" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <button onclick="saveTx()" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-debt" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4 overflow-y-auto">
+  <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in my-8">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" id="debtModalTitle">إضافة دين</h3><button onclick="closeModal('modal-debt')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1.5" data-i18n="debtDirection">نوع الدين</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="setDebtDirection('i_owe')" id="dir-io" class="px-4 py-3 rounded-xl border-2 transition text-sm font-semibold"><div class="flex flex-col items-center gap-1"><i data-lucide="receipt" class="w-5 h-5"></i><span data-i18n="i_owe_short">عليّ</span></div></button>
+          <button type="button" onclick="setDebtDirection('owed_to_me')" id="dir-om" class="px-4 py-3 rounded-xl border-2 transition text-sm font-semibold"><div class="flex flex-col items-center gap-1"><i data-lucide="hand-coins" class="w-5 h-5"></i><span data-i18n="owed_to_me_short">لي</span></div></button>
+        </div>
+      </div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="personName">الاسم الكامل للشخص</label><input id="debtPerson" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500" placeholder="مثال: أحمد محمد علي"></div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="personId">رقم الهوية/الهاتف (اختياري)</label><input id="debtPersonId" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500" placeholder="—"></div>
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="amount">المبلغ (د.ج)</label><input id="debtAmount" type="number" min="1" step="any" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-bold outline-none focus:border-brand-500" placeholder="0"></div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="startDate">تاريخ الدين</label><input id="debtStart" type="date" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="dueDate">تاريخ الاستحقاق</label><input id="debtDue" type="date" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      </div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="reason">سبب الدين (اختياري)</label><input id="debtReason" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="notes">ملاحظات إضافية (اختياري)</label><textarea id="debtNotes" rows="2" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 resize-none"></textarea></div>
+      <div class="flex gap-2"><button onclick="closeModal('modal-debt')" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold" data-i18n="cancel">إلغاء</button><button onclick="saveDebt()" class="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-debt-view" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4 overflow-y-auto">
+  <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl scale-in my-8 overflow-hidden">
+    <div id="debtViewHeader" class="p-6 pb-4"></div>
+    <div id="debtViewBody" class="px-6 pb-6 space-y-4 max-h-[55vh] overflow-y-auto"></div>
+    <div id="debtViewFooter" class="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2 flex-wrap"></div>
+  </div>
+</div>
+
+<div id="modal-payment" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" data-i18n="addPayment">إضافة دفعة</h3><button onclick="closeModal('modal-payment')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div class="space-y-4">
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="amount">المبلغ (د.ج)</label><input id="payAmount" type="number" min="1" step="any" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-lg font-bold outline-none focus:border-brand-500" placeholder="0"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="date">التاريخ</label><input id="payDate" type="date" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="note">ملاحظة (اختياري)</label><input id="payNote" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <button onclick="savePayment()" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-leave" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" id="leaveModalTitle">إضافة إجازة</h3><button onclick="closeModal('modal-leave')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="startDate">البداية</label><input id="leaveStart" type="date" class="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+        <div><label class="block text-sm font-medium mb-1.5" data-i18n="endDate">النهاية</label><input id="leaveEnd" type="date" class="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      </div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="dayType">نوع الأيام</label><select id="leaveType" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"><option value="calendar" data-i18n="calendarDays">أيام التقويم</option><option value="workdays" data-i18n="workDays">أيام العمل</option></select></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="note">ملاحظة (اختياري)</label><input id="leaveNote" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <div class="flex gap-2"><button onclick="closeModal('modal-leave')" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold" data-i18n="cancel">إلغاء</button><button onclick="saveLeave()" class="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-settings" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4 overflow-y-auto">
+  <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in my-8">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" data-i18n="settings">الإعدادات</h3><button onclick="closeModal('modal-settings')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div class="space-y-4">
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="fullName">الاسم الكامل (للمستندات)</label><input id="setFullName" type="text" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="openingBalance">الرصيد الافتتاحي (د.ج)</label><input id="setOpening" type="number" step="any" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 font-semibold"></div>
+      <div><label class="block text-sm font-medium mb-1.5" data-i18n="annualLeaveDays">رصيد الإجازة السنوية (يوم)</label><input id="setAnnualLeave" type="number" min="0" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 font-semibold"></div>
+
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-4">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2" data-i18n="security">الأمان</p>
+        <button onclick="openChangeLock('site')" class="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium text-sm flex items-center justify-between px-4 mb-2">
+          <span class="flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4"></i><span data-i18n="siteLock">قفل الموقع</span></span>
+          <span class="text-xs text-slate-400" id="siteLockType">—</span>
+        </button>
+        <button onclick="openChangeLock('debts')" class="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium text-sm flex items-center justify-between px-4">
+          <span class="flex items-center gap-2"><i data-lucide="shield" class="w-4 h-4"></i><span data-i18n="debtsLock">قفل الديون</span></span>
+          <span class="text-xs text-slate-400" id="debtsLockType">—</span>
+        </button>
+      </div>
+
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-4">
+        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2" data-i18n="preferences">التفضيلات</p>
+        <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+          <span class="flex items-center gap-2 text-sm"><i data-lucide="key-round" class="w-4 h-4 text-brand-600"></i><span data-i18n="rememberPwd">تذكر كلمة المرور على هذا الجهاز</span></span>
+          <input id="setRememberPwd" type="checkbox" class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+        </label>
+        <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer mt-2">
+          <span class="flex items-center gap-2 text-sm"><i data-lucide="bell" class="w-4 h-4 text-brand-600"></i><span data-i18n="enableNotifications">تفعيل الإشعارات</span></span>
+          <input id="setNotifications" type="checkbox" class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+        </label>
+      </div>
+
+      <div class="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
+        <button onclick="exportJSON()" class="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold flex items-center justify-center gap-2"><i data-lucide="download" class="w-4 h-4"></i><span data-i18n="exportAll">تصدير كل البيانات</span></button>
+        <button onclick="resetAll()" class="w-full py-3 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 font-semibold flex items-center justify-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i><span data-i18n="resetAll">مسح كل البيانات</span></button>
+      </div>
+
+      <button onclick="saveSettings()" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="save">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-change-lock" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4 overflow-y-auto">
+  <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in my-8">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-bold" id="changeLockTitle" data-i18n="changeLock">تغيير القفل</h3><button onclick="closeModal('modal-change-lock')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+    <div id="changeLockContent"></div>
+    <p id="changeLockError" class="text-rose-500 text-sm text-center mt-3 hidden"></p>
+  </div>
+</div>
+
+<div id="modal-debts-unlock" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="text-center mb-5">
+      <div class="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-3"><i data-lucide="shield" class="w-7 h-7"></i></div>
+      <h3 class="text-xl font-bold mb-1" data-i18n="debtsLocked">قسم الديون مقفل</h3>
+      <p class="text-sm text-slate-500 dark:text-slate-400" data-i18n="debtsLockedSub">أدخل كلمة مرور الديون للمتابعة</p>
+    </div>
+    <div class="space-y-3">
+      <div class="relative">
+        <i data-lucide="lock" class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400"></i>
+        <input id="debtsUnlockPwd" type="password" class="w-full ps-10 pe-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" placeholder="••••••••">
+        <button type="button" onclick="togglePwd('debtsUnlockPwd', this)" class="absolute top-1/2 -translate-y-1/2 end-3.5 text-slate-400"><i data-lucide="eye" class="w-4 h-4"></i></button>
+      </div>
+      <p id="debtsUnlockError" class="text-rose-500 text-sm text-center hidden"></p>
+      <div class="flex gap-2"><button onclick="closeModal('modal-debts-unlock');setView('finance')" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold" data-i18n="cancel">إلغاء</button><button onclick="unlockDebts()" class="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" data-i18n="unlock">فتح</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-notifs" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 shadow-2xl scale-in overflow-hidden max-h-[85vh] flex flex-col">
+    <div class="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
+      <div class="flex items-center gap-2">
+        <h3 class="text-xl font-bold" data-i18n="notifications">الإشعارات</h3>
+        <span id="notifCountBadge" class="px-2 py-0.5 rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 text-xs font-bold"></span>
+      </div>
+      <button onclick="closeModal('modal-notifs')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div id="notifList" class="p-4 space-y-2 overflow-y-auto"></div>
+  </div>
+</div>
+
+<div id="modal-confirm" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl scale-in">
+    <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+    <h3 class="text-xl font-bold text-center mb-2" id="confirmTitle">تأكيد</h3>
+    <p class="text-sm text-slate-500 dark:text-slate-400 text-center mb-6" id="confirmMsg"></p>
+    <div class="flex gap-2"><button onclick="closeModal('modal-confirm')" class="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold" data-i18n="cancel">إلغاء</button><button id="confirmBtn" class="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold" data-i18n="confirm">تأكيد</button></div>
+  </div>
+</div>
+
+<div id="modal-print" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+  <div class="max-w-4xl mx-auto my-4 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl">
+    <div class="no-print flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 rounded-t-2xl z-10">
+      <h2 class="font-bold flex items-center gap-2"><i data-lucide="file-text" class="w-5 h-5"></i><span data-i18n="debtDocument">مستند الدين</span></h2>
+      <div class="flex gap-2">
+        <button onclick="printNow()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i><span data-i18n="printPdf">طباعة / PDF</span></button>
+        <button onclick="closeModal('modal-print')" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+    </div>
+    <div id="printContent" class="p-8 sm:p-12 bg-white text-slate-900"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium text-sm shadow-2xl fade-in"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   i18n
+══════════════════════════════════════════════════════════════ */
+const i18n = {
+  ar: {
+    appName:'ميزانيتي', greetHi:'مرحباً،', greetSub:'إليك نظرة سريعة على وضعك المالي.',
+    positionTitle:'المركز المالي',
+    myCash:'المبلغ الذي عندي', myCashSub:'النقد المتوفر الآن',
+    myReceivable:'مستحق لي', myReceivableSub:'أموال أقرضتها',
+    myPayable:'ديون عليّ', myPayableSub:'ما يجب أن أسدده',
+    netWorth:'صافي الثروة', netWorthSub:'= النقد + مستحق لي − ديون عليّ',
+    remainingAfterDebts:'الباقي بعد سداد ديوني',
+    totalIncome:'إجمالي المداخيل', totalExpenses:'إجمالي المصاريف',
+    monthlyNet:'صافي الشهر', savingsRate:'نسبة الادخار',
+    tabTransactions:'العمليات', searchPh:'بحث...', add:'إضافة',
+    navFinance:'المالية', navDebts:'الديون', navLeave:'العطل', navStats:'الإحصائيات',
+    debtsTitle:'الديون', debtsSub:'إدارة ديونك ودفعاتك ومستنداتك.',
+    addDebt:'إضافة دين', lock:'قفل', unlock:'فتح',
+    activeDebts:'ديون نشطة', totalOwedToMe:'مستحق لي', totalIOwe:'ديون عليّ', overdueCount:'متأخرة',
+    filterAll:'الكل', filterIOwe:'عليّ', filterOwedToMe:'لي', filterOverdue:'متأخرة',
+    leaveTitle:'العطل والإجازات', leaveSub:'تابع رصيد إجازاتك السنوية.',
+    annualLeave:'الإجازة السنوية', daysRemaining:'يوم متبقٍ', usedDays:'المستهلك', totalDays:'الرصيد الكلي',
+    addLeave:'إضافة إجازة', upcomingLeaves:'القادمة', pastLeaves:'المنتهية',
+    statsTitle:'الإحصائيات', statsSub:'نظرة تحليلية على أموالك.',
+    expensesByCategory:'المصاريف حسب التصنيف', thisMonth:'هذا الشهر',
+    monthlyFlow:'الحركة الشهرية', lastSixMonths:'آخر 6 أشهر',
+    amount:'المبلغ (د.ج)', category:'التصنيف', date:'التاريخ', note:'ملاحظة (اختياري)',
+    save:'حفظ', cancel:'إلغاء', confirm:'تأكيد', settings:'الإعدادات',
+    editName:'تعديل الاسم', yourName:'اسمك', fullName:'الاسم الكامل (للمستندات)',
+    openingBalance:'الرصيد الافتتاحي (د.ج)', annualLeaveDays:'رصيد الإجازة السنوية (يوم)',
+    exportAll:'تصدير كل البيانات', resetAll:'مسح كل البيانات',
+    security:'الأمان', siteLock:'قفل الموقع', debtsLock:'قفل الديون', changeLock:'تغيير القفل',
+    preferences:'التفضيلات', rememberPwd:'تذكر كلمة المرور على هذا الجهاز', enableNotifications:'تفعيل الإشعارات',
+    debtDirection:'نوع الدين', personName:'الاسم الكامل للشخص', personId:'رقم الهوية/الهاتف (اختياري)',
+    startDate:'تاريخ الدين', dueDate:'تاريخ الاستحقاق', reason:'سبب الدين (اختياري)', notes:'ملاحظات إضافية (اختياري)',
+    i_owe_short:'عليّ', owed_to_me_short:'لي',
+    addPayment:'إضافة دفعة', payments:'الدفعات', remaining:'المتبقي', of:'من',
+    unpaid:'غير مسدد', partial:'مسدد جزئياً', paid:'مسدد بالكامل', overdue:'متأخر',
+    daysUnit:'يوم', due:'الاستحقاق', left:'متبقي',
+    debtDocument:'مستند الدين', printPdf:'طباعة / PDF',
+    startDate2:'البداية', endDate:'النهاية', dayType:'نوع الأيام',
+    calendarDays:'أيام التقويم', workDays:'أيام العمل',
+    notifications:'الإشعارات', noNotifications:'لا توجد إشعارات',
+    confirmDelete:'تأكيد الحذف', deleteMsg:'هل تريد حذف هذا السجل نهائياً؟',
+    confirmResetMsg:'سيتم مسح كل البيانات المحلية نهائياً. هل أنت متأكد؟',
+    savedOk:'تم الحفظ بنجاح', deletedOk:'تم الحذف', nameSaved:'تم تحديث الاسم',
+    invalidInput:'يرجى ملء الحقول المطلوبة', minAmount:'المبلغ يجب أن يكون أكبر من صفر',
+    invalidDates:'تواريخ غير صالحة', amountExceeds:'المبلغ يتجاوز المتبقي',
+    emptyTx:'لا توجد عمليات بعد.', emptyDebts:'لا توجد ديون مسجلة.',
+    emptyLeaves:'لا توجد إجازات.', noResults:'لا توجد نتائج',
+    catSalary:'راتب', catFreelance:'عمل حر', catFood:'طعام', catBills:'فواتير',
+    catTransport:'نقل', catDaily:'مصاريف يومية', catShopping:'مشتريات', catTravel:'رحلات ورياضة',
+    income:'مدخول', expense:'مصروف', debtIn:'دين عليّ', debtOut:'دين لي',
+    debtsLocked:'قسم الديون مقفل', debtsLockedSub:'أدخل كلمة مرور الديون للمتابعة',
+    wrongPwd:'كلمة المرور غير صحيحة',
+    // Setup
+    setupTitle:'إعداد الحماية', setupSub:'أمّن بياناتك بكلمة مرور تختارها',
+    stepName:'اسمك', stepMethod:'طريقة القفل', stepSiteLock:'قفل الموقع', stepDebtsPwd:'كلمة مرور الديون',
+    enterYourName:'ما اسمك؟', nameStepDesc:'سيظهر هذا الاسم في الترحيب ومستندات الديون',
+    namePlaceholder:'الاسم الكامل',
+    chooseMethod:'اختر طريقة قفل الموقع',
+    methodPin:'رمز PIN', methodPinDesc:'4-6 أرقام', methodPassword:'كلمة مرور', methodPasswordDesc:'أحرف وأرقام',
+    methodPattern:'نقش', methodPatternDesc:'نمط من 9 نقاط',
+    enterPin:'أدخل رمز PIN', confirmPin:'أعد إدخال رمز PIN', enterPassword:'أدخل كلمة المرور', confirmPassword:'أعد إدخال كلمة المرور',
+    enterPattern:'ارسم النمط', confirmPattern:'أعد رسم النمط',
+    enterDebtsPwd:'أدخل كلمة مرور الديون', confirmDebtsPwd:'أعد إدخال كلمة مرور الديون',
+    next:'التالي', back:'رجوع', complete:'إكمال', changeMethod:'تغيير الطريقة',
+    patternTooShort:'النمط قصير جداً (4 نقاط على الأقل)', passwordsDontMatch:'كلمتا المرور غير متطابقتين',
+    pwdTooShort:'كلمة المرور قصيرة جداً (4 أحرف على الأقل)', pinInvalid:'رمز PIN غير صالح',
+    unlockTitle:'أدخل القفل', unlockSub:'أدخل بياناتك للمتابعة',
+    oldPassword:'كلمة المرور الحالية', newPassword:'كلمة المرور الجديدة', confirmNewPassword:'تأكيد كلمة المرور الجديدة',
+    wrongOldPwd:'كلمة المرور الحالية غير صحيحة', lockUpdated:'تم تحديث القفل بنجاح',
+    newMethod:'الطريقة الجديدة (اختياري)', keepCurrent:'ابقَ كما هو',
+    rememberMe:'تذكرني على هذا الجهاز', rememberHint:'لن تحتاج لإدخال كلمة المرور في المرة القادمة',
+    setupComplete:'تم الإعداد بنجاح', welcomeUser:'مرحباً بك',
+    // PDF
+    pdfTitle:'إقرار دين وسداد', pdfRef:'رقم المستند', pdfDate:'تاريخ التحرير',
+    pdfCreditor:'الدائن / المُقرِض', pdfDebtor:'المدين / المُقترِض',
+    pdfAmountLabel:'المبلغ الإجمالي', pdfAmountWords:'المبلغ كتابةً', pdfCurrency:'دينار جزائري',
+    pdfCreatedDate:'تاريخ إنشاء الدين', pdfDueDate:'تاريخ الاستحقاق',
+    pdfPaid:'المبلغ المدفوع', pdfRemaining:'المبلغ المتبقي', pdfReason:'سبب الدين',
+    pdfTerms:'الشروط والملاحظات', pdfDeclaration:'الإقرار',
+    pdfSignature:'التوقيع', pdfName:'الاسم الكامل', pdfSignDate:'التاريخ', pdfIdNumber:'رقم الهوية/الهاتف',
+    pdfDisclaimer:'هذا المستند نموذج توضيحي غير معتمد قانونياً ويُستخدم للأرشفة الشخصية فقط.',
+    pdfPaymentsTable:'سجل الدفعات', pdfPaymentNum:'#', pdfPaymentDate:'التاريخ',
+    pdfPaymentAmount:'المبلغ', pdfPaymentNote:'ملاحظة', pdfNoPayments:'لا توجد دفعات مسجلة',
+    pdfWitnesses:'الشهود', pdfWitness:'الشاهد',
+    pdfDeclarationText: (creditor, debtor, amount, currency, startDate, dueDate) =>
+      `أقر أنا الموقّع أدناه، السيد/السيدة "${debtor}"، بأنني مدين للسيد/السيدة "${creditor}" بمبلغ ${amount} ${currency}، وذلك بموجب هذا المستند الموقّع من الطرفين. وألتزم بسداد كامل المبلغ المتبقي في موعد أقصاه ${dueDate}. ويُعد هذا المستند سنداً لإثبات الدين بين الطرفين، مع الاعتراف بحق الدائن في المطالبة بكامل المبلغ المتبقي عند حلول الأجل.`,
+    pdfBothAgree:'وقد تم تحرير هذا المستند بموافقة الطرفين، وتم التوقيع عليه في التاريخ المذكور أعلاه.',
+    // Notifications
+    notifDebtOverdue:'⚠️ دين متأخر', notifDebtToday:'🔔 دين يستحق اليوم', notifDebtTomorrow:'⏰ دين يستحق غداً',
+    notifDebt2Days:'📅 دين يستحق بعد يومين', notifDebtSoon:'🕒 دين يستحق خلال {n} أيام',
+    notifLeaveSoon:'🌴 إجازة تبدأ خلال {n} أيام', notifLeaveTomorrow:'✈️ إجازتك تبدأ غداً',
+    notifNegativeNetWorth:'⚠️ صافي ثروتك سالب', notifHighDebtRatio:'⚠️ ديونك مرتفعة مقارنة بمبالغك',
+    notifNegativeMonth:'📉 صافي هذا الشهر سلبي',
+    overdueBy:'متأخر بـ {n} يوم',
+    priorityHigh:'عاجل', priorityMedium:'متوسط', priorityLow:'منخفض',
+    monthsShort:['ينا','فبر','مار','أفر','ماي','جوا','جوي','أوت','سبت','أكت','نوف','ديس']
+  },
+  fr: {
+    appName:'My Budget', greetHi:'Bonjour,', greetSub:'Aperçu de vos finances.',
+    positionTitle:'Position financière', myCash:'Ce que je possède', myCashSub:'Trésorerie disponible',
+    myReceivable:'On me doit', myReceivableSub:'Prêts accordés', myPayable:'Je dois', myPayableSub:'Dettes à régler',
+    netWorth:'Valeur nette', netWorthSub:'= Trésorerie + Créances − Dettes',
+    remainingAfterDebts:'Reste après dettes',
+    totalIncome:'Revenus totaux', totalExpenses:'Dépenses totales', monthlyNet:'Net du mois', savingsRate:'Taux d\'épargne',
+    tabTransactions:'Transactions', searchPh:'Rechercher...', add:'Ajouter',
+    navFinance:'Finances', navDebts:'Dettes', navLeave:'Congés', navStats:'Stats',
+    debtsTitle:'Dettes', debtsSub:'Gérez vos dettes.', addDebt:'Ajouter dette', lock:'Verrouiller', unlock:'Ouvrir',
+    activeDebts:'Dettes actives', totalOwedToMe:'On me doit', totalIOwe:'Je dois', overdueCount:'En retard',
+    filterAll:'Tous', filterIOwe:'Je dois', filterOwedToMe:'On me doit', filterOverdue:'En retard',
+    leaveTitle:'Congés', leaveSub:'Suivez vos congés.', annualLeave:'Congé annuel', daysRemaining:'jours restants',
+    usedDays:'Utilisés', totalDays:'Total', addLeave:'Ajouter', upcomingLeaves:'À venir', pastLeaves:'Passés',
+    statsTitle:'Statistiques', statsSub:'Aperçu analytique.', expensesByCategory:'Dépenses par catégorie',
+    thisMonth:'Ce mois-ci', monthlyFlow:'Flux mensuel', lastSixMonths:'6 derniers mois',
+    amount:'Montant (DA)', category:'Catégorie', date:'Date', note:'Note (optionnel)',
+    save:'Enregistrer', cancel:'Annuler', confirm:'Confirmer', settings:'Paramètres',
+    editName:'Modifier le nom', yourName:'Votre nom', fullName:'Nom complet (documents)',
+    openingBalance:'Solde initial (DA)', annualLeaveDays:'Congés annuels (jours)',
+    exportAll:'Exporter tout', resetAll:'Effacer tout',
+    security:'Sécurité', siteLock:'Verrouillage site', debtsLock:'Verrouillage dettes', changeLock:'Changer le verrouillage',
+    preferences:'Préférences', rememberPwd:'Mémoriser le mot de passe', enableNotifications:'Activer notifications',
+    debtDirection:'Type de dette', personName:'Nom complet', personId:'ID/Téléphone (optionnel)',
+    startDate:'Date de la dette', dueDate:'Échéance', reason:'Motif', notes:'Notes',
+    i_owe_short:'Je dois', owed_to_me_short:'On me doit',
+    addPayment:'Ajouter paiement', payments:'Paiements', remaining:'Restant', of:'sur',
+    unpaid:'Impayé', partial:'Partiel', paid:'Payé', overdue:'En retard',
+    daysUnit:'j', due:'Échéance', left:'restants',
+    debtDocument:'Document', printPdf:'Imprimer / PDF',
+    startDate2:'Début', endDate:'Fin', dayType:'Type', calendarDays:'Jours calendaires', workDays:'Jours ouvrables',
+    notifications:'Notifications', noNotifications:'Aucune notification',
+    confirmDelete:'Confirmer', deleteMsg:'Supprimer définitivement ?', confirmResetMsg:'Effacer toutes les données ?',
+    savedOk:'Enregistré', deletedOk:'Supprimé', nameSaved:'Nom mis à jour',
+    invalidInput:'Champs requis', minAmount:'Montant > 0', invalidDates:'Dates invalides', amountExceeds:'Dépasse le restant',
+    emptyTx:'Aucune transaction.', emptyDebts:'Aucune dette.', emptyLeaves:'Aucun congé.', noResults:'Aucun résultat',
+    catSalary:'Salaire', catFreelance:'Freelance', catFood:'Alimentation', catBills:'Factures',
+    catTransport:'Transport', catDaily:'Quotidien', catShopping:'Achats', catTravel:'Voyages',
+    income:'Revenu', expense:'Dépense', debtIn:'Je dois', debtOut:'On me doit',
+    debtsLocked:'Section verrouillée', debtsLockedSub:'Mot de passe dettes', wrongPwd:'Mot de passe incorrect',
+    setupTitle:'Configuration', setupSub:'Protégez vos données',
+    stepName:'Nom', stepMethod:'Méthode', stepSiteLock:'Verrouillage', stepDebtsPwd:'Mot de passe dettes',
+    enterYourName:'Votre nom ?', nameStepDesc:'Affiché dans l\'accueil et les documents', namePlaceholder:'Nom complet',
+    chooseMethod:'Méthode de verrouillage',
+    methodPin:'Code PIN', methodPinDesc:'4-6 chiffres', methodPassword:'Mot de passe', methodPasswordDesc:'Lettres et chiffres',
+    methodPattern:'Motif', methodPatternDesc:'9 points',
+    enterPin:'Entrez le PIN', confirmPin:'Confirmez', enterPassword:'Mot de passe', confirmPassword:'Confirmer',
+    enterPattern:'Dessinez', confirmPattern:'Redessinez',
+    enterDebtsPwd:'Mot de passe dettes', confirmDebtsPwd:'Confirmer',
+    next:'Suivant', back:'Retour', complete:'Terminer', changeMethod:'Changer',
+    patternTooShort:'Motif trop court', passwordsDontMatch:'Ne correspondent pas', pwdTooShort:'Trop court', pinInvalid:'PIN invalide',
+    unlockTitle:'Déverrouiller', unlockSub:'Vos identifiants',
+    oldPassword:'Actuel', newPassword:'Nouveau', confirmNewPassword:'Confirmer',
+    wrongOldPwd:'Actuel incorrect', lockUpdated:'Mis à jour',
+    newMethod:'Nouvelle méthode', keepCurrent:'Garder',
+    rememberMe:'Se souvenir', rememberHint:'Pas de mot de passe la prochaine fois',
+    setupComplete:'Configuration terminée', welcomeUser:'Bienvenue',
+    pdfTitle:'Reconnaissance de dette', pdfRef:'Réf.', pdfDate:'Date',
+    pdfCreditor:'Créancier', pdfDebtor:'Débiteur',
+    pdfAmountLabel:'Montant total', pdfAmountWords:'En lettres', pdfCurrency:'Dinar algérien',
+    pdfCreatedDate:'Date création', pdfDueDate:'Échéance', pdfPaid:'Payé', pdfRemaining:'Restant',
+    pdfReason:'Motif', pdfTerms:'Notes', pdfDeclaration:'Déclaration',
+    pdfSignature:'Signature', pdfName:'Nom', pdfSignDate:'Date', pdfIdNumber:'ID/Tél',
+    pdfDisclaimer:'Document de démonstration, non certifié — usage personnel.',
+    pdfPaymentsTable:'Paiements', pdfPaymentNum:'#', pdfPaymentDate:'Date', pdfPaymentAmount:'Montant',
+    pdfPaymentNote:'Note', pdfNoPayments:'Aucun paiement', pdfWitnesses:'Témoins', pdfWitness:'Témoin',
+    pdfDeclarationText:(c,d,a,cu,s,du)=>`Je soussigné(e) "${d}" reconnais devoir à "${c}" la somme de ${a} ${cu}, conformément au présent document. Je m'engage à rembourser au plus tard le ${du}.`,
+    pdfBothAgree:'Document établi avec l\'accord des deux parties.',
+    notifDebtOverdue:'⚠️ Dette en retard', notifDebtToday:'🔔 Dette due aujourd\'hui', notifDebtTomorrow:'⏰ Dette due demain',
+    notifDebt2Days:'📅 Dette dans 2 jours', notifDebtSoon:'🕒 Dette dans {n} jours',
+    notifLeaveSoon:'🌴 Congé dans {n} jours', notifLeaveTomorrow:'✈️ Congé demain',
+    notifNegativeNetWorth:'⚠️ Valeur nette négative', notifHighDebtRatio:'⚠️ Dettes élevées', notifNegativeMonth:'📉 Mois négatif',
+    overdueBy:'En retard de {n} jours', priorityHigh:'Urgent', priorityMedium:'Moyen', priorityLow:'Faible',
+    monthsShort:['Jan','Fév','Mar','Avr','Mai','Jui','Jui','Aoû','Sep','Oct','Nov','Déc']
+  },
+  en: {
+    appName:'My Budget', greetHi:'Hello,', greetSub:'Quick overview of your finances.',
+    positionTitle:'Financial Position', myCash:'What I have', myCashSub:'Available cash',
+    myReceivable:'Owed to me', myReceivableSub:'Money lent', myPayable:'I owe', myPayableSub:'Debts to settle',
+    netWorth:'Net worth', netWorthSub:'= Cash + Receivables − Payables',
+    remainingAfterDebts:'Remaining after debts',
+    totalIncome:'Total income', totalExpenses:'Total expenses', monthlyNet:'Monthly net', savingsRate:'Savings rate',
+    tabTransactions:'Transactions', searchPh:'Search...', add:'Add',
+    navFinance:'Finance', navDebts:'Debts', navLeave:'Leave', navStats:'Stats',
+    debtsTitle:'Debts', debtsSub:'Manage debts.', addDebt:'Add debt', lock:'Lock', unlock:'Unlock',
+    activeDebts:'Active', totalOwedToMe:'Owed to me', totalIOwe:'I owe', overdueCount:'Overdue',
+    filterAll:'All', filterIOwe:'I owe', filterOwedToMe:'Owed to me', filterOverdue:'Overdue',
+    leaveTitle:'Leave', leaveSub:'Track leave.', annualLeave:'Annual leave', daysRemaining:'days remaining',
+    usedDays:'Used', totalDays:'Total', addLeave:'Add leave', upcomingLeaves:'Upcoming', pastLeaves:'Past',
+    statsTitle:'Statistics', statsSub:'Analytical overview.', expensesByCategory:'By category',
+    thisMonth:'This month', monthlyFlow:'Monthly flow', lastSixMonths:'Last 6 months',
+    amount:'Amount (DZD)', category:'Category', date:'Date', note:'Note (optional)',
+    save:'Save', cancel:'Cancel', confirm:'Confirm', settings:'Settings',
+    editName:'Edit name', yourName:'Your name', fullName:'Full name (documents)',
+    openingBalance:'Opening balance (DZD)', annualLeaveDays:'Annual leave days',
+    exportAll:'Export all', resetAll:'Clear all',
+    security:'Security', siteLock:'Site lock', debtsLock:'Debts lock', changeLock:'Change lock',
+    preferences:'Preferences', rememberPwd:'Remember password', enableNotifications:'Enable notifications',
+    debtDirection:'Debt type', personName:'Full name', personId:'ID/Phone (optional)',
+    startDate:'Debt date', dueDate:'Due date', reason:'Reason', notes:'Notes',
+    i_owe_short:'I owe', owed_to_me_short:'Owed to me',
+    addPayment:'Add payment', payments:'Payments', remaining:'Remaining', of:'of',
+    unpaid:'Unpaid', partial:'Partial', paid:'Paid', overdue:'Overdue',
+    daysUnit:'d', due:'Due', left:'left',
+    debtDocument:'Document', printPdf:'Print / PDF',
+    startDate2:'Start', endDate:'End', dayType:'Day type', calendarDays:'Calendar days', workDays:'Workdays',
+    notifications:'Notifications', noNotifications:'No notifications',
+    confirmDelete:'Confirm', deleteMsg:'Delete permanently?', confirmResetMsg:'Erase all data?',
+    savedOk:'Saved', deletedOk:'Deleted', nameSaved:'Name updated',
+    invalidInput:'Required fields', minAmount:'Amount > 0', invalidDates:'Invalid dates', amountExceeds:'Exceeds remaining',
+    emptyTx:'No transactions.', emptyDebts:'No debts.', emptyLeaves:'No leaves.', noResults:'No results',
+    catSalary:'Salary', catFreelance:'Freelance', catFood:'Food', catBills:'Bills',
+    catTransport:'Transport', catDaily:'Daily', catShopping:'Shopping', catTravel:'Travel',
+    income:'Income', expense:'Expense', debtIn:'I owe', debtOut:'Owed to me',
+    debtsLocked:'Section locked', debtsLockedSub:'Enter password', wrongPwd:'Incorrect password',
+    setupTitle:'Security Setup', setupSub:'Protect your data',
+    stepName:'Name', stepMethod:'Method', stepSiteLock:'Site lock', stepDebtsPwd:'Debts password',
+    enterYourName:'Your name?', nameStepDesc:'Shown in greeting and documents', namePlaceholder:'Full name',
+    chooseMethod:'Choose lock method',
+    methodPin:'PIN', methodPinDesc:'4-6 digits', methodPassword:'Password', methodPasswordDesc:'Letters & numbers',
+    methodPattern:'Pattern', methodPatternDesc:'9 points',
+    enterPin:'Enter PIN', confirmPin:'Confirm', enterPassword:'Password', confirmPassword:'Confirm',
+    enterPattern:'Draw pattern', confirmPattern:'Redraw',
+    enterDebtsPwd:'Debts password', confirmDebtsPwd:'Confirm',
+    next:'Next', back:'Back', complete:'Complete', changeMethod:'Change',
+    patternTooShort:'Pattern too short', passwordsDontMatch:'Do not match', pwdTooShort:'Too short', pinInvalid:'Invalid PIN',
+    unlockTitle:'Unlock', unlockSub:'Your credentials',
+    oldPassword:'Current', newPassword:'New', confirmNewPassword:'Confirm',
+    wrongOldPwd:'Current incorrect', lockUpdated:'Updated',
+    newMethod:'New method', keepCurrent:'Keep',
+    rememberMe:'Remember me', rememberHint:'No password next time',
+    setupComplete:'Setup complete', welcomeUser:'Welcome',
+    pdfTitle:'Debt Acknowledgment', pdfRef:'Ref.', pdfDate:'Date',
+    pdfCreditor:'Creditor', pdfDebtor:'Debtor',
+    pdfAmountLabel:'Total amount', pdfAmountWords:'In words', pdfCurrency:'Algerian Dinar',
+    pdfCreatedDate:'Created', pdfDueDate:'Due', pdfPaid:'Paid', pdfRemaining:'Remaining',
+    pdfReason:'Reason', pdfTerms:'Terms', pdfDeclaration:'Declaration',
+    pdfSignature:'Signature', pdfName:'Full name', pdfSignDate:'Date', pdfIdNumber:'ID/Phone',
+    pdfDisclaimer:'Demo document, not legally certified — personal use.',
+    pdfPaymentsTable:'Payments', pdfPaymentNum:'#', pdfPaymentDate:'Date', pdfPaymentAmount:'Amount',
+    pdfPaymentNote:'Note', pdfNoPayments:'No payments', pdfWitnesses:'Witnesses', pdfWitness:'Witness',
+    pdfDeclarationText:(c,d,a,cu,s,du)=>`I, the undersigned "${d}", acknowledge being indebted to "${c}" for the sum of ${a} ${cu}, per this document. I commit to repay by ${du}.`,
+    pdfBothAgree:'Document drawn up by mutual agreement.',
+    notifDebtOverdue:'⚠️ Debt overdue', notifDebtToday:'🔔 Debt due today', notifDebtTomorrow:'⏰ Debt due tomorrow',
+    notifDebt2Days:'📅 Debt due in 2 days', notifDebtSoon:'🕒 Debt due in {n} days',
+    notifLeaveSoon:'🌴 Leave in {n} days', notifLeaveTomorrow:'✈️ Leave tomorrow',
+    notifNegativeNetWorth:'⚠️ Negative net worth', notifHighDebtRatio:'⚠️ High debt ratio', notifNegativeMonth:'📉 Negative month',
+    overdueBy:'Overdue by {n} days', priorityHigh:'Urgent', priorityMedium:'Medium', priorityLow:'Low',
+    monthsShort:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   Storage & State
+══════════════════════════════════════════════════════════════ */
+const LS_DATA = 'mizanData_v4';
+const LS_LOCK = 'mizanLock_v4';
+const LS_REMEMBER = 'mizanRemember_v4';
+
+const defaultData = () => ({
+  userName:'صديقي', fullName:'', openingBalance:70000, annualLeaveDays:30,
+  notificationPrefs: { enabled: true, debts: true, leaves: true, financial: true },
+  transactions: [
+    { id:'t1', type:'income', amount:85000, category:'catSalary', note:'راتب نوفمبر', date:'2026-11-01', createdAt:Date.now() },
+    { id:'t2', type:'income', amount:15000, category:'catFreelance', note:'مشروع تصميم', date:'2026-11-03', createdAt:Date.now() },
+    { id:'t3', type:'expense', amount:12500, category:'catFood', note:'سلة تسوق', date:'2026-11-05', createdAt:Date.now() },
+    { id:'t4', type:'expense', amount:3500, category:'catBills', note:'إنترنت', date:'2026-11-04', createdAt:Date.now() },
+    { id:'t5', type:'expense', amount:5000, category:'catTransport', note:'وقود', date:'2026-11-03', createdAt:Date.now() },
+    { id:'t6', type:'expense', amount:2800, category:'catDaily', note:'مطعم', date:'2026-11-02', createdAt:Date.now() },
+    { id:'t7', type:'expense', amount:6500, category:'catShopping', note:'ملابس', date:'2026-11-02', createdAt:Date.now() }
+  ],
+  debts: [
+    { id:'d1', direction:'owed_to_me', person:'أحمد بن علي', personId:'0555-123456', amount:25000, startDate:'2026-10-15', dueDate: addDaysStr(todayStr(), 2), reason:'سلفة شخصية', notes:'', payments:[], createdAt:Date.now() },
+    { id:'d2', direction:'i_owe', person:'سارة مراد', personId:'0555-654321', amount:8000, startDate:'2026-10-20', dueDate: addDaysStr(todayStr(), 7), reason:'إصلاح سيارة', notes:'', payments:[{id:'p1',amount:3000,date:'2026-11-01',note:'دفعة أولى'}], createdAt:Date.now() },
+    { id:'d3', direction:'owed_to_me', person:'كريم حداد', personId:'', amount:15000, startDate:'2026-09-20', dueDate: addDaysStr(todayStr(), -3), reason:'شراء هاتف', notes:'', payments:[], createdAt:Date.now() }
+  ],
+  leaves: [
+    { id:'l1', startDate:'2026-08-01', endDate:'2026-08-07', note:'عطلة صيف', dayType:'calendar', createdAt:Date.now() },
+    { id:'l2', startDate:'2026-12-20', endDate:'2026-12-27', note:'عطلة شتاء', dayType:'calendar', createdAt:Date.now() }
+  ]
+});
+
+const state = {
+  lang: localStorage.getItem('lang') || 'ar',
+  theme: localStorage.getItem('theme') || 'light',
+  view: 'finance',
+  search: '',
+  data: null,
+  lock: null,
+  debtsUnlocked: false,
+  debtFilter: 'all',
+  editing: { tx:null, debt:null, leave:null, paymentDebtId:null },
+  currentDebtId: null,
+  changeLockTarget: null,
+  setup: { step:0, method:'pin', siteValue:null, debtsTemp:null }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   Helpers
+══════════════════════════════════════════════════════════════ */
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function addDaysStr(dateStr, n) {
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d+n);
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+function daysBetween(a,b) { return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000); }
+function today() { return todayStr(); }
+function loadData() {
+  try {
+    const raw = localStorage.getItem(LS_DATA);
+    state.data = raw ? JSON.parse(raw) : defaultData();
+    if (!state.data.notificationPrefs) state.data.notificationPrefs = { enabled: true, debts: true, leaves: true, financial: true };
+  } catch { state.data = defaultData(); }
+  saveData();
+}
+function saveData() { localStorage.setItem(LS_DATA, JSON.stringify(state.data)); }
+function loadLock() { try { state.lock = JSON.parse(localStorage.getItem(LS_LOCK)) || null; } catch { state.lock = null; } }
+function saveLock() { localStorage.setItem(LS_LOCK, JSON.stringify(state.lock)); }
+
+function t(k) { const v = i18n[state.lang]?.[k]; return typeof v === 'function' ? v : (v || k); }
+function tf(k, ...args) { const v = i18n[state.lang]?.[k]; return typeof v === 'function' ? v(...args) : (v || k); }
+function uid() { return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function sha256(str) {
+  if (!crypto.subtle) return simpleHash(str);
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function simpleHash(str) { let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h) + str.charCodeAt(i), h |= 0; return 'sh_' + h.toString(16); }
+
+function locale() { return state.lang === 'ar' ? 'ar-DZ' : state.lang === 'fr' ? 'fr-DZ' : 'en-DZ'; }
+function fmtMoney(n) { return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(Number(n) || 0) + ' ' + (state.lang === 'fr' ? 'DA' : 'د.ج'); }
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Intl.DateTimeFormat(locale(), { day:'2-digit', month:'short', year:'numeric' }).format(new Date(d + 'T00:00:00')); }
+  catch { return d; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Debt / Leave calculations
+══════════════════════════════════════════════════════════════ */
+function debtPaid(d) { return (d.payments||[]).reduce((s,p)=>s+Number(p.amount||0),0); }
+function debtRemaining(d) { return Math.max(0, Number(d.amount) - debtPaid(d)); }
+function debtStatus(d) {
+  const rem = debtRemaining(d);
+  if (rem <= 0.01) return 'paid';
+  if (d.dueDate && d.dueDate < today()) return 'overdue';
+  if (debtPaid(d) > 0) return 'partial';
+  return 'unpaid';
+}
+function leaveDays(l) {
+  if (!l.startDate || !l.endDate) return 0;
+  if (l.dayType === 'calendar') return daysBetween(l.startDate, l.endDate) + 1;
+  let c = 0, d = new Date(l.startDate+'T00:00:00'), end = new Date(l.endDate+'T00:00:00');
+  while (d <= end) { const wd = d.getDay(); if (wd !== 5 && wd !== 6) c++; d.setDate(d.getDate()+1); }
+  return c;
+}
+function leaveStatus(l) {
+  const td = today();
+  if (l.endDate < td) return 'past';
+  if (l.startDate > td) return 'upcoming';
+  return 'current';
+}
+function calcPosition() {
+  const income = state.data.transactions.filter(x=>x.type==='income').reduce((s,x)=>s+Number(x.amount),0);
+  const expense = state.data.transactions.filter(x=>x.type==='expense').reduce((s,x)=>s+Number(x.amount),0);
+  const cash = state.data.openingBalance + income - expense;
+  const receivable = state.data.debts.filter(d=>d.direction==='owed_to_me').reduce((s,d)=>s+debtRemaining(d),0);
+  const payable = state.data.debts.filter(d=>d.direction==='i_owe').reduce((s,d)=>s+debtRemaining(d),0);
+  const netWorth = cash + receivable - payable;
+  const remaining = cash - payable;
+  const mk = today().slice(0,7);
+  const mIncome = state.data.transactions.filter(x=>x.type==='income' && (x.date||'').slice(0,7)===mk).reduce((s,x)=>s+Number(x.amount),0);
+  const mExpense = state.data.transactions.filter(x=>x.type==='expense' && (x.date||'').slice(0,7)===mk).reduce((s,x)=>s+Number(x.amount),0);
+  const monthlyNet = mIncome - mExpense;
+  const savingsRate = income > 0 ? Math.round(((income - expense) / income) * 100) : 0;
+  return { income, expense, cash, receivable, payable, netWorth, remaining, monthlyNet, savingsRate };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Theme / Language
+══════════════════════════════════════════════════════════════ */
+function applyTheme() { document.documentElement.classList.toggle('dark', state.theme === 'dark'); setTimeout(updateCharts, 50); }
+function toggleTheme() { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('theme', state.theme); applyTheme(); }
+function setLanguage(lang) {
+  state.lang = lang;
+  localStorage.setItem('lang', lang);
+  applyTranslations();
+  renderAll();
+  updateCharts();
+  if (!document.getElementById('screen-setup').classList.contains('hidden')) renderSetup();
+  if (!document.getElementById('screen-unlock').classList.contains('hidden')) renderUnlock();
+}
+function applyTranslations() {
+  document.documentElement.lang = state.lang;
+  document.documentElement.dir = state.lang === 'ar' ? 'rtl' : 'ltr';
+  document.body.classList.remove('font-ar','font-latin');
+  document.body.classList.add(state.lang === 'ar' ? 'font-ar' : 'font-latin');
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  const ue = document.getElementById('userNameDisplay'); if (ue) ue.textContent = state.data.userName || t('yourName');
+  const un = document.getElementById('unlockName'); if (un) un.textContent = state.data.userName || t('appName');
+  renderNav();
+  lucide.createIcons();
+}
+function toggleMenu(id) {
+  const m = document.getElementById(id);
+  document.querySelectorAll('[id^="langMenu"]').forEach(x => { if (x.id !== id) x.classList.add('hidden'); });
+  m.classList.toggle('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Modals & Toast
+══════════════════════════════════════════════════════════════ */
+function openModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); setTimeout(() => lucide.createIcons(), 20); }
+function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+function confirmAction(title, msg, onConfirm) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  const btn = document.getElementById('confirmBtn');
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+  clone.onclick = () => { closeModal('modal-confirm'); onConfirm(); };
+  openModal('modal-confirm');
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.add('hidden'), 2400);
+}
+function togglePwd(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (inp.type === 'password') { inp.type = 'text'; btn.innerHTML = '<i data-lucide="eye-off" class="w-4 h-4"></i>'; }
+  else { inp.type = 'password'; btn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>'; }
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCK LABELS
+══════════════════════════════════════════════════════════════ */
+function lockMethodLabel(m) {
+  return { pin:'PIN', password:t('methodPassword'), pattern:t('methodPattern') }[m] || m;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETUP FLOW (name → method → site lock → debts password)
+══════════════════════════════════════════════════════════════ */
+function showSetup() {
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('screen-setup').classList.remove('hidden');
+  state.setup = { step:0, method:'pin', siteValue:null, debtsTemp:null };
+  renderSetup();
+}
+function renderSetup() {
+  const c = document.getElementById('setupContent');
+  const s = state.setup;
+  // Dot phase mapping
+  let phase = 1;
+  if (s.step === 0) phase = 1;
+  else if (s.step === 1) phase = 2;
+  else if (s.step === 2 || s.step === 3) phase = 3;
+  else if (s.step >= 4) phase = 4;
+  document.querySelectorAll('.step-dot').forEach(d => {
+    const n = parseInt(d.dataset.step);
+    const active = n <= phase;
+    d.className = 'step-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ' + (active ? 'bg-brand-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500');
+  });
+  document.getElementById('setupError').classList.add('hidden');
+
+  // STEP 0: Name
+  if (s.step === 0) {
+    c.innerHTML = `
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-3"><i data-lucide="user-round" class="w-6 h-6"></i></div>
+        <h3 class="font-bold text-lg">${t('enterYourName')}</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${t('nameStepDesc')}</p>
+      </div>
+      <input id="setupNameInput" type="text" maxlength="40" value="${escapeHtml(state.data.userName !== 'صديقي' ? state.data.userName : '')}" placeholder="${t('namePlaceholder')}" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-lg font-semibold text-center">
+      <button onclick="submitSetupName()" class="w-full mt-4 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('next')}</button>
+    `;
+    setTimeout(() => document.getElementById('setupNameInput')?.focus(), 100);
+    document.getElementById('setupNameInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') submitSetupName(); });
+  }
+  // STEP 1: Method
+  else if (s.step === 1) {
+    c.innerHTML = `
+      <h3 class="font-bold text-lg mb-4 text-center">${t('chooseMethod')}</h3>
+      <div class="grid grid-cols-1 gap-3">
+        ${[
+          ['pin','hash','methodPin','methodPinDesc'],
+          ['password','key-round','methodPassword','methodPasswordDesc'],
+          ['pattern','grid-3x3','methodPattern','methodPatternDesc']
+        ].map(([m,ic,label,desc]) => `
+          <button onclick="setSetupMethod('${m}')" class="p-4 rounded-2xl border-2 transition ${s.method===m?'border-brand-500 bg-brand-50 dark:bg-brand-900/30':'border-slate-200 dark:border-slate-700 hover:border-brand-300'} flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl ${s.method===m?'bg-brand-600 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'} flex items-center justify-center shrink-0">
+              <i data-lucide="${ic}" class="w-5 h-5"></i>
+            </div>
+            <div class="text-start">
+              <p class="font-semibold">${t(label)}</p>
+              <p class="text-xs text-slate-500 mt-0.5">${t(desc)}</p>
+            </div>
+          </button>`).join('')}
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button onclick="goSetupStep(0)" class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-sm">${t('back')}</button>
+        <button onclick="goSetupStep(2)" class="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('next')}</button>
+      </div>
+    `;
+  }
+  // STEP 2: Set site lock
+  else if (s.step === 2) {
+    c.innerHTML = `
+      <h3 class="font-bold text-lg mb-2 text-center">${t('stepSiteLock')}</h3>
+      <p class="text-sm text-slate-500 text-center mb-4">${lockMethodLabel(s.method)}</p>
+      <div id="setupLockInput"></div>
+      <button onclick="goSetupStep(1)" class="w-full mt-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-sm">${t('back')} · ${t('changeMethod')}</button>
+    `;
+    renderLockInput('setupLockInput', s.method, (val) => {
+      if (s.method === 'pin' && (!val || val.length < 4)) return showSetupError(t('pinInvalid'));
+      if (s.method === 'password' && (!val || val.length < 4)) return showSetupError(t('pwdTooShort'));
+      if (s.method === 'pattern' && (!val || val.length < 4)) return showSetupError(t('patternTooShort'));
+      s.siteValue = val;
+      goSetupStep(3);
+    });
+  }
+  // STEP 3: Confirm site lock
+  else if (s.step === 3) {
+    c.innerHTML = `
+      <h3 class="font-bold text-lg mb-2 text-center">${t('confirmPin')}</h3>
+      <p class="text-sm text-slate-500 text-center mb-4">${lockMethodLabel(s.method)}</p>
+      <div id="setupConfirmInput"></div>
+    `;
+    renderLockInput('setupConfirmInput', s.method, (val) => {
+      if (!lockValuesEqual(s.method, val, s.siteValue)) return showSetupError(t('passwordsDontMatch'));
+      state.setup.step = 4;
+      renderSetup();
+    });
+  }
+  // STEP 4/5: Debts password
+  else if (s.step === 4 || s.step === 5) {
+    const isConfirm = s.step === 5;
+    c.innerHTML = `
+      <h3 class="font-bold text-lg mb-2 text-center">${isConfirm ? t('confirmDebtsPwd') : t('enterDebtsPwd')}</h3>
+      <p class="text-sm text-slate-500 text-center mb-4">${t('stepDebtsPwd')}</p>
+      <div class="relative">
+        <i data-lucide="lock" class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400"></i>
+        <input id="debtsPwdInput" type="password" class="w-full ps-10 pe-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-lg" placeholder="••••••••">
+        <button type="button" onclick="togglePwd('debtsPwdInput', this)" class="absolute top-1/2 -translate-y-1/2 end-3.5 text-slate-400"><i data-lucide="eye" class="w-4 h-4"></i></button>
+      </div>
+      <label class="flex items-center justify-between p-3 mt-3 rounded-xl bg-brand-50/60 dark:bg-brand-900/20 cursor-pointer">
+        <div>
+          <div class="text-sm font-semibold">${t('rememberMe')}</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${t('rememberHint')}</div>
+        </div>
+        <input id="setupRememberPwd" type="checkbox" checked class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+      </label>
+      <button onclick="submitDebtsPwd()" class="w-full mt-4 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${isConfirm ? t('complete') : t('next')}</button>
+    `;
+    lucide.createIcons();
+    setTimeout(() => document.getElementById('debtsPwdInput')?.focus(), 100);
+  }
+  lucide.createIcons();
+}
+function showSetupError(msg) { const el = document.getElementById('setupError'); el.textContent = msg; el.classList.remove('hidden'); }
+function setSetupMethod(m) { state.setup.method = m; renderSetup(); }
+function goSetupStep(n) { state.setup.step = n; renderSetup(); }
+function lockValuesEqual(method, a, b) {
+  if (method === 'pattern') return JSON.stringify(a) === JSON.stringify(b);
+  return a === b;
+}
+function submitSetupName() {
+  const v = document.getElementById('setupNameInput').value.trim();
+  if (!v) return showSetupError(t('invalidInput'));
+  state.data.userName = v;
+  if (!state.data.fullName) state.data.fullName = v;
+  saveData();
+  state.setup.step = 1;
+  renderSetup();
+}
+function submitDebtsPwd() {
+  const v = document.getElementById('debtsPwdInput').value;
+  if (!v || v.length < 4) return showSetupError(t('pwdTooShort'));
+  if (state.setup.step === 4) {
+    state.setup.debtsTemp = v;
+    state.setup.step = 5;
+    renderSetup();
+  } else {
+    if (v !== state.setup.debtsTemp) return showSetupError(t('passwordsDontMatch'));
+    const remember = document.getElementById('setupRememberPwd')?.checked ?? true;
+    finishSetup(v, remember);
+  }
+}
+async function finishSetup(debtsPwd, remember) {
+  const s = state.setup;
+  const siteConfig = { method: s.method };
+  if (s.method === 'pattern') {
+    siteConfig.pattern = s.siteValue;
+    siteConfig.hash = await sha256(JSON.stringify(s.siteValue));
+  } else {
+    siteConfig.hash = await sha256(String(s.siteValue));
+  }
+  state.lock = {
+    setup: true,
+    rememberPassword: remember,
+    site: siteConfig,
+    debts: { method: 'password', hash: await sha256(String(debtsPwd)) }
+  };
+  saveLock();
+  if (remember) localStorage.setItem(LS_REMEMBER, '1');
+  enterApp();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCK INPUT RENDERER
+══════════════════════════════════════════════════════════════ */
+function renderLockInput(containerId, method, onComplete) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (method === 'pin') renderPinInput(c, onComplete);
+  else if (method === 'password') renderPasswordInput(c, onComplete);
+  else if (method === 'pattern') renderPatternInput(c, onComplete);
+}
+
+function renderPinInput(container, onComplete) {
+  let pin = '';
+  container.innerHTML = `
+    <div class="text-center mb-4">
+      <div class="flex justify-center gap-2 mb-3" id="pinDots">
+        ${[0,1,2,3,4,5].map(i => `<div class="pin-dot w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700" data-i="${i}"></div>`).join('')}
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-2">
+      ${[1,2,3,4,5,6,7,8,9].map(n => `<button data-pin="${n}" class="pin-num numpad-btn py-4 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-lg">${n}</button>`).join('')}
+      <button data-pin-clear class="numpad-btn py-4 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium text-xs">${t('cancel')}</button>
+      <button data-pin="0" class="pin-num numpad-btn py-4 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-lg">0</button>
+      <button data-pin-ok class="numpad-btn py-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold"><i data-lucide="check" class="w-5 h-5 mx-auto"></i></button>
+    </div>
+  `;
+  const dots = container.querySelectorAll('.pin-dot');
+  const updateDots = () => dots.forEach((d,i) => d.className = 'pin-dot w-3 h-3 rounded-full transition ' + (i < pin.length ? 'bg-brand-500' : 'bg-slate-200 dark:bg-slate-700'));
+  container.querySelectorAll('.pin-num').forEach(b => b.onclick = () => { if (pin.length < 6) { pin += b.dataset.pin; updateDots(); } });
+  container.querySelector('[data-pin-clear]').onclick = () => { pin = ''; updateDots(); };
+  container.querySelector('[data-pin-ok]').onclick = () => { if (pin.length >= 4) { const v = pin; pin = ''; updateDots(); onComplete(v); } };
+  lucide.createIcons();
+}
+
+function renderPasswordInput(container, onComplete) {
+  container.innerHTML = `
+    <div class="relative">
+      <i data-lucide="lock" class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400"></i>
+      <input id="pwdField-${uid()}" type="password" class="pwd-field w-full ps-10 pe-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500 text-lg" placeholder="••••••••">
+    </div>
+    <button class="pwd-submit w-full mt-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('next')}</button>
+  `;
+  const inp = container.querySelector('.pwd-field');
+  const btn = container.querySelector('.pwd-submit');
+  setTimeout(() => inp.focus(), 100);
+  const submit = () => { const v = inp.value; if (v) { inp.value = ''; onComplete(v); } };
+  btn.onclick = submit;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+}
+
+function renderPatternInput(container, onComplete) {
+  container.innerHTML = `
+    <p class="text-xs text-slate-400 text-center mb-3">${t('enterPattern')}</p>
+    <div class="mx-auto" style="width: 260px; height: 260px;">
+      <svg viewBox="0 0 300 300" class="pattern-svg w-full h-full">
+        <polyline class="p-line" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        ${[0,1,2,3,4,5,6,7,8].map(i => {
+          const col = i % 3, row = Math.floor(i / 3);
+          const cx = 50 + col * 100, cy = 50 + row * 100;
+          return `<circle cx="${cx}" cy="${cy}" r="18" class="p-dot cursor-pointer" style="fill:#fff;stroke:#cbd5e1;stroke-width:3;" data-index="${i}"/>`;
+        }).join('')}
+      </svg>
+    </div>
+  `;
+  setTimeout(() => {
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+    const dots = svg.querySelectorAll('.p-dot');
+    const line = svg.querySelector('.p-line');
+    const isDark = document.documentElement.classList.contains('dark');
+    dots.forEach(d => { d.style.fill = isDark ? '#1e293b' : '#fff'; d.style.stroke = isDark ? '#475569' : '#cbd5e1'; });
+    let pattern = [], drawing = false;
+    const addDot = (i) => {
+      if (pattern.includes(i)) return;
+      pattern.push(i);
+      dots[i].classList.add('active');
+      const points = pattern.map(idx => `${dots[idx].getAttribute('cx')},${dots[idx].getAttribute('cy')}`);
+      line.setAttribute('points', points.join(' '));
+    };
+    const reset = () => { pattern = []; dots.forEach(d => d.classList.remove('active')); line.setAttribute('points', ''); };
+    svg.addEventListener('pointerdown', e => { e.preventDefault(); svg.setPointerCapture(e.pointerId); reset(); drawing = true; const tgt = document.elementFromPoint(e.clientX, e.clientY); const dot = tgt?.closest('.p-dot'); if (dot && svg.contains(dot)) addDot(parseInt(dot.dataset.index)); });
+    svg.addEventListener('pointermove', e => { if (!drawing) return; const tgt = document.elementFromPoint(e.clientX, e.clientY); const dot = tgt?.closest('.p-dot'); if (dot && svg.contains(dot)) addDot(parseInt(dot.dataset.index)); });
+    const finish = () => { if (!drawing) return; drawing = false; if (pattern.length >= 4) { const v = [...pattern]; reset(); onComplete(v); } else reset(); };
+    svg.addEventListener('pointerup', finish);
+    svg.addEventListener('pointercancel', finish);
+    svg.addEventListener('pointerleave', finish);
+  }, 30);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UNLOCK
+══════════════════════════════════════════════════════════════ */
+function showUnlock() {
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('screen-unlock').classList.remove('hidden');
+  renderUnlock();
+}
+function renderUnlock() {
+  const method = state.lock.site.method;
+  document.getElementById('unlockSub').textContent = lockMethodLabel(method);
+  const c = document.getElementById('unlockContent');
+  document.getElementById('unlockError').classList.add('hidden');
+  const rememberChecked = state.lock.rememberPassword ? 'checked' : '';
+
+  if (method === 'pin') {
+    c.innerHTML = `
+      <div class="text-center mb-3"><div class="flex justify-center gap-2" id="unlockDots">${[0,1,2,3,4,5].map(i => `<div class="u-dot w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700" data-i="${i}"></div>`).join('')}</div></div>
+      <div class="grid grid-cols-3 gap-2">
+        ${[1,2,3,4,5,6,7,8,9].map(n => `<button data-unpin="${n}" class="unpin-num numpad-btn py-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-lg shadow-sm">${n}</button>`).join('')}
+        <button data-unpin-clear class="numpad-btn py-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-xs shadow-sm">${t('cancel')}</button>
+        <button data-unpin="0" class="unpin-num numpad-btn py-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-lg shadow-sm">0</button>
+        <button data-unpin-ok class="numpad-btn py-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-sm"><i data-lucide="check" class="w-5 h-5 mx-auto"></i></button>
+      </div>
+      <label class="flex items-center justify-between p-3 mt-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+        <span class="text-sm font-medium">${t('rememberMe')}</span>
+        <input id="unlockRemember" type="checkbox" ${rememberChecked} class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+      </label>
+    `;
+    let pin = '';
+    const dots = c.querySelectorAll('.u-dot');
+    const updateDots = () => dots.forEach((d,i) => d.className = 'u-dot w-3 h-3 rounded-full transition ' + (i < pin.length ? 'bg-brand-500' : 'bg-slate-200 dark:bg-slate-700'));
+    c.querySelectorAll('.unpin-num').forEach(b => b.onclick = () => { if (pin.length < 6) { pin += b.dataset.unpin; updateDots(); } });
+    c.querySelector('[data-unpin-clear]').onclick = () => { pin = ''; updateDots(); };
+    c.querySelector('[data-unpin-ok]').onclick = () => { if (pin.length >= 4) { const v = pin; pin = ''; updateDots(); verifySiteLock(v); } };
+  } else if (method === 'password') {
+    c.innerHTML = `
+      <div class="relative">
+        <i data-lucide="lock" class="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400"></i>
+        <input id="uPwd" type="password" class="w-full ps-10 pe-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:border-brand-500 text-lg" placeholder="••••••••">
+        <button type="button" onclick="togglePwd('uPwd', this)" class="absolute top-1/2 -translate-y-1/2 end-3.5 text-slate-400"><i data-lucide="eye" class="w-4 h-4"></i></button>
+      </div>
+      <label class="flex items-center justify-between p-3 mt-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+        <span class="text-sm font-medium">${t('rememberMe')}</span>
+        <input id="unlockRemember" type="checkbox" ${rememberChecked} class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+      </label>
+      <button onclick="verifySiteLock(document.getElementById('uPwd').value)" class="w-full mt-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('unlock')}</button>
+    `;
+    setTimeout(() => document.getElementById('uPwd')?.focus(), 100);
+    document.getElementById('uPwd')?.addEventListener('keydown', e => { if (e.key === 'Enter') verifySiteLock(e.target.value); });
+  } else if (method === 'pattern') {
+    c.innerHTML = `<div id="unlockPatternInput"></div>
+      <label class="flex items-center justify-between p-3 mt-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+        <span class="text-sm font-medium">${t('rememberMe')}</span>
+        <input id="unlockRemember" type="checkbox" ${rememberChecked} class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500">
+      </label>`;
+    renderPatternInput(document.getElementById('unlockPatternInput'), (val) => verifySiteLock(val));
+  }
+  lucide.createIcons();
+}
+function showUnlockError(msg) { const el = document.getElementById('unlockError'); el.textContent = msg; el.classList.remove('hidden'); }
+async function verifySiteLock(val) {
+  const cfg = state.lock.site;
+  let ok = false;
+  if (cfg.method === 'pattern') ok = (await sha256(JSON.stringify(val))) === cfg.hash;
+  else if (cfg.method === 'pin' || cfg.method === 'password') ok = (await sha256(String(val))) === cfg.hash;
+
+  if (ok) {
+    const remember = document.getElementById('unlockRemember')?.checked ?? false;
+    state.lock.rememberPassword = remember;
+    saveLock();
+    if (remember) localStorage.setItem(LS_REMEMBER, '1');
+    else localStorage.removeItem(LS_REMEMBER);
+    enterApp();
+  } else {
+    showUnlockError(t('wrongPwd'));
+    renderUnlock();
+  }
+}
+
+function enterApp() {
+  document.getElementById('screen-setup').classList.add('hidden');
+  document.getElementById('screen-unlock').classList.add('hidden');
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  state.debtsUnlocked = false;
+  renderAll();
+  setView('finance');
+  setTimeout(() => { updateCharts(); lucide.createIcons(); }, 80);
+}
+function lockApp() {
+  // Full lock: clear remember so password is required again
+  localStorage.removeItem(LS_REMEMBER);
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('screen-unlock').classList.remove('hidden');
+  renderUnlock();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEBTS LOCK
+══════════════════════════════════════════════════════════════ */
+function requestDebtsUnlock() {
+  if (state.debtsUnlocked) return true;
+  document.getElementById('debtsUnlockPwd').value = '';
+  document.getElementById('debtsUnlockError').classList.add('hidden');
+  openModal('modal-debts-unlock');
+  setTimeout(() => document.getElementById('debtsUnlockPwd')?.focus(), 100);
+  return false;
+}
+async function unlockDebts() {
+  const v = document.getElementById('debtsUnlockPwd').value;
+  if (!v) return;
+  const h = await sha256(String(v));
+  if (h === state.lock.debts.hash) {
+    state.debtsUnlocked = true;
+    closeModal('modal-debts-unlock');
+    showDebtsView();
+  } else {
+    const err = document.getElementById('debtsUnlockError');
+    err.textContent = t('wrongPwd');
+    err.classList.remove('hidden');
+  }
+}
+function lockDebts() { state.debtsUnlocked = false; setView('finance'); toast(t('lock') + ' ✓'); }
+
+/* ══════════════════════════════════════════════════════════════
+   CHANGE LOCK
+══════════════════════════════════════════════════════════════ */
+function openChangeLock(target) {
+  state.changeLockTarget = target;
+  document.getElementById('changeLockTitle').textContent = target === 'site' ? t('siteLock') : t('debtsLock');
+  document.getElementById('changeLockError').classList.add('hidden');
+  renderChangeLock();
+  openModal('modal-change-lock');
+}
+function renderChangeLock() {
+  const target = state.changeLockTarget;
+  const cfg = target === 'site' ? state.lock.site : state.lock.debts;
+  const c = document.getElementById('changeLockContent');
+  if (!c) return;
+  if (target === 'debts') {
+    c.innerHTML = `
+      <div class="space-y-3">
+        <div><label class="block text-sm font-medium mb-1.5">${t('oldPassword')}</label><input id="chOldPwd" type="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+        <div><label class="block text-sm font-medium mb-1.5">${t('newPassword')}</label><input id="chNewPwd" type="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+        <div><label class="block text-sm font-medium mb-1.5">${t('confirmNewPassword')}</label><input id="chConfirmPwd" type="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500"></div>
+        <button onclick="submitChangeDebtsLock()" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('save')}</button>
+      </div>
+    `;
+  } else {
+    c.innerHTML = `
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1.5">${t('oldPassword')} <span class="text-xs text-slate-400">(${lockMethodLabel(cfg.method)})</span></label>
+          <div class="relative">
+            <input id="chOldSiteVal" type="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500" placeholder="••••••••">
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">${cfg.method === 'pattern' ? '—' : ''}</p>
+        </div>
+        <div class="border-t border-slate-100 dark:border-slate-800 pt-3">
+          <label class="block text-sm font-medium mb-1.5">${t('newMethod')}</label>
+          <select id="chNewMethod" onchange="renderChangeSiteNew()" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 outline-none focus:border-brand-500">
+            <option value="keep">${t('keepCurrent')} (${lockMethodLabel(cfg.method)})</option>
+            <option value="pin">${t('methodPin')}</option>
+            <option value="password">${t('methodPassword')}</option>
+            <option value="pattern">${t('methodPattern')}</option>
+          </select>
+        </div>
+        <div id="chSiteNewInput"></div>
+        <button onclick="submitChangeSiteLock()" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">${t('save')}</button>
+      </div>
+    `;
+  }
+  lucide.createIcons();
+}
+function renderChangeSiteNew() {
+  const m = document.getElementById('chNewMethod').value;
+  const c = document.getElementById('chSiteNewInput');
+  if (m === 'keep') { c.innerHTML = ''; state._chNewMethod = null; state._chNewVal = null; return; }
+  state._chNewMethod = m;
+  c.innerHTML = `<div class="border-t border-slate-100 dark:border-slate-800 pt-3">
+    <label class="block text-sm font-medium mb-1.5">${t('newPassword')} (${lockMethodLabel(m)})</label>
+    <div id="chSiteNewLockInput"></div>
+  </div>`;
+  renderLockInput('chSiteNewLockInput', m, (val) => { state._chNewVal = val; });
+  lucide.createIcons();
+}
+async function submitChangeDebtsLock() {
+  const oldV = document.getElementById('chOldPwd').value;
+  const newV = document.getElementById('chNewPwd').value;
+  const confV = document.getElementById('chConfirmPwd').value;
+  const errEl = document.getElementById('changeLockError');
+  errEl.classList.add('hidden');
+  if ((await sha256(String(oldV))) !== state.lock.debts.hash) { errEl.textContent = t('wrongOldPwd'); errEl.classList.remove('hidden'); return; }
+  if (newV.length < 4) { errEl.textContent = t('pwdTooShort'); errEl.classList.remove('hidden'); return; }
+  if (newV !== confV) { errEl.textContent = t('passwordsDontMatch'); errEl.classList.remove('hidden'); return; }
+  state.lock.debts.hash = await sha256(String(newV));
+  saveLock();
+  closeModal('modal-change-lock');
+  toast(t('lockUpdated'));
+}
+async function submitChangeSiteLock() {
+  const errEl = document.getElementById('changeLockError');
+  errEl.classList.add('hidden');
+  const oldVal = document.getElementById('chOldSiteVal')?.value;
+  if (!oldVal) { errEl.textContent = t('invalidInput'); errEl.classList.remove('hidden'); return; }
+  const oldMethod = state.lock.site.method;
+  let okOld = false;
+  if (oldMethod === 'pattern') okOld = (await sha256(JSON.stringify(state._chOldPattern || []))) === state.lock.site.hash;
+  else okOld = (await sha256(String(oldVal))) === state.lock.site.hash;
+  if (!okOld) { errEl.textContent = t('wrongOldPwd'); errEl.classList.remove('hidden'); return; }
+
+  const newMethod = document.getElementById('chNewMethod').value;
+  if (newMethod === 'keep') { closeModal('modal-change-lock'); toast(t('lockUpdated')); return; }
+  const newVal = state._chNewVal;
+  if (!newVal || newVal.length < 4) { errEl.textContent = t('pwdTooShort'); errEl.classList.remove('hidden'); return; }
+
+  if (newMethod === 'pattern') state.lock.site = { method: 'pattern', pattern: newVal, hash: await sha256(JSON.stringify(newVal)) };
+  else state.lock.site = { method: newMethod, hash: await sha256(String(newVal)) };
+
+  // Clear remember token when changing method/password
+  localStorage.removeItem(LS_REMEMBER);
+  saveLock();
+  closeModal('modal-change-lock');
+  toast(t('lockUpdated'));
+  updateSettingsLockLabels();
+}
+function updateSettingsLockLabels() {
+  const s = document.getElementById('siteLockType');
+  const d = document.getElementById('debtsLockType');
+  if (s) s.textContent = lockMethodLabel(state.lock.site.method);
+  if (d) d.textContent = lockMethodLabel(state.lock.debts.method);
+  const rp = document.getElementById('setRememberPwd');
+  if (rp) rp.checked = !!state.lock.rememberPassword;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NAV
+══════════════════════════════════════════════════════════════ */
+function renderNav() {
+  const items = [
+    { id:'finance', icon:'wallet', label:'navFinance' },
+    { id:'debts', icon:'hand-coins', label:'navDebts' },
+    { id:'leave', icon:'palmtree', label:'navLeave' },
+    { id:'stats', icon:'bar-chart-3', label:'navStats' }
+  ];
+  document.getElementById('desktopNav').innerHTML = items.map(i => `
+    <button data-nav="${i.id}" onclick="setView('${i.id}')" class="nav-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+      <i data-lucide="${i.icon}" class="w-4 h-4"></i><span>${t(i.label)}</span>
+    </button>`).join('');
+  document.getElementById('bottomNav').innerHTML = items.map(i => `
+    <button data-nav="${i.id}" onclick="setView('${i.id}')" class="nav-btn bottom-nav-btn relative py-3 flex flex-col items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 transition">
+      <i data-lucide="${i.icon}" class="w-5 h-5"></i><span>${t(i.label)}</span>
+    </button>`).join('');
+  updateNavStyles();
+  lucide.createIcons();
+}
+function setView(v) {
+  if (v === 'debts' && !state.debtsUnlocked) { requestDebtsUnlock(); return; }
+  if (v !== 'debts' && state.debtsUnlocked && state.view === 'debts') state.debtsUnlocked = false;
+  state.view = v;
+  ['finance','debts','leave','stats'].forEach(n => document.getElementById('view-'+n).classList.toggle('hidden', n !== v));
+  updateNavStyles();
+  if (v === 'stats') setTimeout(updateCharts, 50);
+  if (v === 'debts') showDebtsView();
+}
+function showDebtsView() {
+  state.view = 'debts';
+  ['finance','debts','leave','stats'].forEach(n => document.getElementById('view-'+n).classList.toggle('hidden', n !== 'debts'));
+  updateNavStyles();
+  renderDebts();
+}
+function updateNavStyles() {
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    const active = b.dataset.nav === state.view;
+    b.classList.toggle('nav-active', active);
+    b.classList.toggle('active', active);
+    if (b.closest('#desktopNav')) {
+      b.classList.toggle('bg-white', active);
+      b.classList.toggle('dark:bg-slate-900', active);
+      b.classList.toggle('shadow-sm', active);
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Name
+══════════════════════════════════════════════════════════════ */
+function openNameModal() {
+  document.getElementById('nameInput').value = state.data.userName || '';
+  openModal('modal-name');
+  setTimeout(() => document.getElementById('nameInput')?.focus(), 100);
+}
+function saveName() {
+  const v = document.getElementById('nameInput').value.trim();
+  if (!v) return toast(t('invalidInput'));
+  state.data.userName = v;
+  if (!state.data.fullName) state.data.fullName = v;
+  saveData();
+  closeModal('modal-name');
+  document.getElementById('userNameDisplay').textContent = v;
+  document.getElementById('unlockName').textContent = v;
+  toast(t('nameSaved'));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Transactions
+══════════════════════════════════════════════════════════════ */
+function openTxModal(type, id=null) {
+  state.editing.tx = id;
+  document.getElementById('txModalTitle').textContent = id ? t('save') : (type === 'income' ? t('addIncome') : t('addExpense'));
+  setTxType(type);
+  if (id) {
+    const tx = state.data.transactions.find(x => x.id === id);
+    if (tx) {
+      document.getElementById('txAmount').value = tx.amount;
+      document.getElementById('txCategory').value = tx.category;
+      document.getElementById('txDate').value = tx.date;
+      document.getElementById('txNote').value = tx.note || '';
+    }
+  } else {
+    document.getElementById('txAmount').value = '';
+    document.getElementById('txDate').value = today();
+    document.getElementById('txNote').value = '';
+  }
+  openModal('modal-tx');
+}
+function setTxType(type) {
+  document.getElementById('modal-tx').dataset.type = type;
+  ['income','expense'].forEach(tp => {
+    const b = document.getElementById('txType-'+tp);
+    if (!b) return;
+    const active = tp === type;
+    b.className = 'tx-type-btn py-3 rounded-xl border-2 transition text-sm font-semibold flex items-center justify-center gap-1.5 ' + (active
+      ? (tp === 'income' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400')
+      : 'border-slate-200 dark:border-slate-700 text-slate-500');
+  });
+  const cats = type === 'income'
+    ? [['catSalary','catSalary'],['catFreelance','catFreelance']]
+    : [['catFood','catFood'],['catBills','catBills'],['catTransport','catTransport'],['catDaily','catDaily'],['catShopping','catShopping'],['catTravel','catTravel']];
+  const sel = document.getElementById('txCategory');
+  if (sel) sel.innerHTML = cats.map(([v,k]) => `<option value="${v}">${t(k)}</option>`).join('');
+}
+function saveTx() {
+  const type = document.getElementById('modal-tx').dataset.type;
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  if (!amount || amount <= 0) return toast(t('minAmount'));
+  const category = document.getElementById('txCategory').value;
+  const date = document.getElementById('txDate').value || today();
+  const note = document.getElementById('txNote').value.trim();
+  if (state.editing.tx) {
+    const tx = state.data.transactions.find(x => x.id === state.editing.tx);
+    if (tx) Object.assign(tx, { type, amount, category, date, note });
+  } else {
+    state.data.transactions.unshift({ id: uid(), type, amount, category, date, note, createdAt: Date.now() });
+  }
+  saveData(); closeModal('modal-tx'); renderAll(); updateCharts();
+  toast(t('savedOk'));
+}
+function deleteTx(id) {
+  confirmAction(t('confirmDelete'), t('deleteMsg'), () => {
+    state.data.transactions = state.data.transactions.filter(x => x.id !== id);
+    saveData(); renderAll(); updateCharts(); toast(t('deletedOk'));
+  });
+}
+function editTx(id) { const tx = state.data.transactions.find(x => x.id === id); if (tx) openTxModal(tx.type, id); }
+function onSearch(v) { state.search = v; renderTx(); }
+
+/* ══════════════════════════════════════════════════════════════
+   Debts
+══════════════════════════════════════════════════════════════ */
+function openDebtModal(id=null) {
+  state.editing.debt = id;
+  document.getElementById('debtModalTitle').textContent = id ? t('save') : t('addDebt');
+  const d = id ? state.data.debts.find(x => x.id === id) : null;
+  setDebtDirection(d?.direction || 'i_owe');
+  document.getElementById('debtPerson').value = d?.person || '';
+  document.getElementById('debtPersonId').value = d?.personId || '';
+  document.getElementById('debtAmount').value = d?.amount || '';
+  document.getElementById('debtStart').value = d?.startDate || today();
+  document.getElementById('debtDue').value = d?.dueDate || '';
+  document.getElementById('debtReason').value = d?.reason || '';
+  document.getElementById('debtNotes').value = d?.notes || '';
+  openModal('modal-debt');
+}
+function setDebtDirection(dir) {
+  document.getElementById('modal-debt').dataset.direction = dir;
+  ['io','om'].forEach(k => {
+    const b = document.getElementById('dir-'+k);
+    b.className = 'px-4 py-3 rounded-xl border-2 transition text-sm font-semibold ' +
+      ((k==='io' && dir==='i_owe') || (k==='om' && dir==='owed_to_me')
+        ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400'
+        : 'border-slate-200 dark:border-slate-700 text-slate-500');
+  });
+  lucide.createIcons();
+}
+function saveDebt() {
+  const direction = document.getElementById('modal-debt').dataset.direction || 'i_owe';
+  const person = document.getElementById('debtPerson').value.trim();
+  const personId = document.getElementById('debtPersonId').value.trim();
+  const amount = parseFloat(document.getElementById('debtAmount').value);
+  const startDate = document.getElementById('debtStart').value;
+  const dueDate = document.getElementById('debtDue').value;
+  const reason = document.getElementById('debtReason').value.trim();
+  const notes = document.getElementById('debtNotes').value.trim();
+  if (!person) return toast(t('invalidInput'));
+  if (!amount || amount <= 0) return toast(t('minAmount'));
+  if (!startDate) return toast(t('invalidDates'));
+  if (dueDate && dueDate < startDate) return toast(t('invalidDates'));
+  if (state.editing.debt) {
+    const d = state.data.debts.find(x => x.id === state.editing.debt);
+    if (d) Object.assign(d, { direction, person, personId, amount, startDate, dueDate, reason, notes });
+  } else {
+    state.data.debts.unshift({ id: uid(), direction, person, personId, amount, startDate, dueDate, reason, notes, payments: [], createdAt: Date.now() });
+  }
+  saveData(); closeModal('modal-debt'); renderAll(); updateCharts();
+  toast(t('savedOk'));
+}
+function deleteDebt(id) {
+  confirmAction(t('confirmDelete'), t('deleteMsg'), () => {
+    state.data.debts = state.data.debts.filter(x => x.id !== id);
+    saveData(); renderAll(); updateCharts(); toast(t('deletedOk'));
+  });
+}
+function setDebtFilter(f) {
+  state.debtFilter = f;
+  renderDebts();
+}
+function openDebtView(id) {
+  const d = state.data.debts.find(x => x.id === id);
+  if (!d) return;
+  state.currentDebtId = id;
+  const status = debtStatus(d), paid = debtPaid(d), remaining = debtRemaining(d);
+  const isMine = d.direction === 'owed_to_me';
+  const pct = d.amount > 0 ? Math.min(100, Math.round((paid/d.amount)*100)) : 0;
+
+  document.getElementById('debtViewHeader').innerHTML = `
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl ${isMine?'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400':'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'} flex items-center justify-center">
+          <i data-lucide="${isMine?'hand-coins':'receipt'}" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold">${escapeHtml(d.person)}</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400">${t(isMine?'debtOut':'debtIn')}</p>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-debt-view')" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+      <div class="flex items-end justify-between mb-2">
+        <div><div class="text-3xl font-extrabold">${fmtMoney(remaining)}</div><div class="text-xs text-slate-500 dark:text-slate-400">${t('remaining')} ${t('of')} ${fmtMoney(d.amount)}</div></div>
+        ${statusChip(status)}
+      </div>
+      <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div class="h-full ${isMine?'bg-sky-500':'bg-amber-500'} rounded-full" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1.5"><span>${t('pdfPaid')}: ${fmtMoney(paid)}</span><span>${t('due')}: ${fmtDate(d.dueDate)}</span></div>
+    </div>
+  `;
+
+  const paymentsHtml = (d.payments||[]).length
+    ? `<div class="space-y-2"><h4 class="text-sm font-semibold flex items-center gap-2"><i data-lucide="history" class="w-4 h-4"></i>${t('payments')}</h4>
+        ${d.payments.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(p => `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div><div class="font-semibold text-sm">${fmtMoney(p.amount)}</div><div class="text-xs text-slate-500 dark:text-slate-400">${fmtDate(p.date)}${p.note?' · '+escapeHtml(p.note):''}</div></div>
+            <button onclick="deletePayment('${d.id}','${p.id}')" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>`).join('')}
+      </div>`
+    : `<div class="text-center text-sm text-slate-400 py-3">${t('pdfNoPayments')}</div>`;
+
+  document.getElementById('debtViewBody').innerHTML = `
+    <div class="grid grid-cols-2 gap-3 text-sm">
+      <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">${t('startDate')}</div><div class="font-semibold">${fmtDate(d.startDate)}</div></div>
+      <div><div class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">${t('dueDate')}</div><div class="font-semibold">${fmtDate(d.dueDate)}</div></div>
+      ${d.personId?`<div class="col-span-2"><div class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">${t('personId')}</div><div>${escapeHtml(d.personId)}</div></div>`:''}
+      ${d.reason?`<div class="col-span-2"><div class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">${t('reason')}</div><div>${escapeHtml(d.reason)}</div></div>`:''}
+      ${d.notes?`<div class="col-span-2"><div class="text-xs text-slate-500 dark:text-slate-400 mb-0.5">${t('notes')}</div><div>${escapeHtml(d.notes)}</div></div>`:''}
+    </div>
+    ${paymentsHtml}
+  `;
+
+  document.getElementById('debtViewFooter').innerHTML = `
+    <button onclick="closeModal('modal-debt-view');openPaymentModal('${d.id}')" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm flex items-center justify-center gap-1.5"><i data-lucide="plus" class="w-4 h-4"></i>${t('addPayment')}</button>
+    <button onclick="openDebtPrint('${d.id}')" class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800"><i data-lucide="file-text" class="w-4 h-4"></i>${t('debtDocument')}</button>
+    <button onclick="closeModal('modal-debt-view');openDebtModal('${d.id}')" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+    <button onclick="closeModal('modal-debt-view');deleteDebt('${d.id}')" class="p-2.5 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+  `;
+
+  openModal('modal-debt-view');
+  lucide.createIcons();
+}
+function statusChip(s) {
+  const map = {
+    unpaid:'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+    partial:'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    paid:'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+    overdue:'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
+  };
+  return `<span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${map[s]}">${t(s)}</span>`;
+}
+function openPaymentModal(debtId) {
+  state.editing.paymentDebtId = debtId;
+  document.getElementById('payAmount').value = '';
+  document.getElementById('payDate').value = today();
+  document.getElementById('payNote').value = '';
+  openModal('modal-payment');
+  setTimeout(() => document.getElementById('payAmount')?.focus(), 100);
+}
+function savePayment() {
+  const id = state.editing.paymentDebtId;
+  const amount = parseFloat(document.getElementById('payAmount').value);
+  if (!amount || amount <= 0) return toast(t('minAmount'));
+  const d = state.data.debts.find(x => x.id === id);
+  if (!d) return;
+  const rem = debtRemaining(d);
+  if (amount > rem + 0.01) return toast(t('amountExceeds'));
+  const date = document.getElementById('payDate').value || today();
+  const note = document.getElementById('payNote').value.trim();
+  d.payments = d.payments || [];
+  d.payments.push({ id: uid(), amount, date, note });
+  saveData(); closeModal('modal-payment'); renderAll(); updateCharts();
+  if (state.currentDebtId === id) openDebtView(id);
+  toast(t('savedOk'));
+}
+function deletePayment(debtId, payId) {
+  confirmAction(t('confirmDelete'), t('deleteMsg'), () => {
+    const d = state.data.debts.find(x => x.id === debtId);
+    if (!d) return;
+    d.payments = (d.payments||[]).filter(p => p.id !== payId);
+    saveData(); renderAll(); updateCharts();
+    if (state.currentDebtId === debtId) openDebtView(debtId);
+    toast(t('deletedOk'));
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Leaves
+══════════════════════════════════════════════════════════════ */
+function openLeaveModal(id=null) {
+  state.editing.leave = id;
+  document.getElementById('leaveModalTitle').textContent = id ? t('save') : t('addLeave');
+  const l = id ? state.data.leaves.find(x => x.id === id) : null;
+  document.getElementById('leaveStart').value = l?.startDate || today();
+  document.getElementById('leaveEnd').value = l?.endDate || today();
+  document.getElementById('leaveType').value = l?.dayType || 'calendar';
+  document.getElementById('leaveNote').value = l?.note || '';
+  openModal('modal-leave');
+}
+function saveLeave() {
+  const startDate = document.getElementById('leaveStart').value;
+  const endDate = document.getElementById('leaveEnd').value;
+  if (!startDate || !endDate || endDate < startDate) return toast(t('invalidDates'));
+  const dayType = document.getElementById('leaveType').value;
+  const note = document.getElementById('leaveNote').value.trim();
+  if (state.editing.leave) {
+    const l = state.data.leaves.find(x => x.id === state.editing.leave);
+    if (l) Object.assign(l, { startDate, endDate, dayType, note });
+  } else {
+    state.data.leaves.push({ id: uid(), startDate, endDate, dayType, note, createdAt: Date.now() });
+  }
+  saveData(); closeModal('modal-leave'); renderAll();
+  toast(t('savedOk'));
+}
+function deleteLeave(id) {
+  confirmAction(t('confirmDelete'), t('deleteMsg'), () => {
+    state.data.leaves = state.data.leaves.filter(x => x.id !== id);
+    saveData(); renderAll(); toast(t('deletedOk'));
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Render
+══════════════════════════════════════════════════════════════ */
+function renderAll() {
+  renderPosition();
+  renderTx();
+  renderDebts();
+  renderLeaves();
+  renderNotifs();
+}
+
+function renderPosition() {
+  const p = calcPosition();
+  document.getElementById('posCash').textContent = fmtMoney(p.cash);
+  document.getElementById('posReceivable').textContent = fmtMoney(p.receivable);
+  document.getElementById('posPayable').textContent = fmtMoney(p.payable);
+  document.getElementById('posNetWorth').textContent = fmtMoney(p.netWorth);
+  document.getElementById('posRemaining').textContent = fmtMoney(p.remaining);
+  document.getElementById('remainingFormula').textContent = `${fmtMoney(p.cash)} − ${fmtMoney(p.payable)}`;
+  document.getElementById('kpiIncome').textContent = fmtMoney(p.income);
+  document.getElementById('kpiExpense').textContent = fmtMoney(p.expense);
+  document.getElementById('kpiMonthlyNet').textContent = fmtMoney(p.monthlyNet);
+  document.getElementById('kpiMonthlyNet').className = 'font-bold text-lg mt-0.5 ' + (p.monthlyNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400');
+  document.getElementById('kpiSavingsRate').textContent = p.savingsRate + '%';
+  document.getElementById('kpiSavingsRate').className = 'font-bold text-lg mt-0.5 ' + (p.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400');
+}
+
+function renderTx() {
+  const list = document.getElementById('txList');
+  let items = state.data.transactions.slice().sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.createdAt - a.createdAt));
+  if (state.search.trim()) {
+    const q = state.search.trim().toLowerCase();
+    items = items.filter(x => String(x.amount).includes(q) || (x.note||'').toLowerCase().includes(q) || t(x.category).toLowerCase().includes(q) || (x.date||'').includes(q));
+  }
+  if (!items.length) { list.innerHTML = emptyState(state.search ? t('noResults') : t('emptyTx'), 'inbox'); lucide.createIcons(); return; }
+  list.innerHTML = items.map(x => {
+    const isIn = x.type === 'income';
+    return `
+      <div class="group flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isIn?'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400':'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'}"><i data-lucide="${isIn?'arrow-down-left':'arrow-up-right'}" class="w-5 h-5"></i></div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold truncate">${escapeHtml(x.note || t(x.category))}</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap"><span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800">${t(x.category)}</span><span>·</span><span>${fmtDate(x.date)}</span></div>
+        </div>
+        <div class="text-end font-bold ${isIn?'text-emerald-600 dark:text-emerald-400':'text-rose-600 dark:text-rose-400'} whitespace-nowrap">${isIn?'+':'−'}${fmtMoney(x.amount)}</div>
+        <div class="flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <button onclick="editTx('${x.id}')" class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+          <button onclick="deleteTx('${x.id}')" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/30"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function renderDebts() {
+  if (!document.getElementById('debtList')) return;
+  const active = state.data.debts.filter(d => debtStatus(d) !== 'paid').length;
+  const overdue = state.data.debts.filter(d => debtStatus(d) === 'overdue').length;
+  const owed = state.data.debts.filter(d => d.direction === 'owed_to_me').reduce((s,d)=>s+debtRemaining(d),0);
+  const iOwe = state.data.debts.filter(d => d.direction === 'i_owe').reduce((s,d)=>s+debtRemaining(d),0);
+  document.getElementById('dsActive').textContent = active;
+  document.getElementById('dsOverdue').textContent = overdue;
+  document.getElementById('dsOwedToMe').textContent = fmtMoney(owed);
+  document.getElementById('dsIOwe').textContent = fmtMoney(iOwe);
+
+  let debts = state.data.debts.slice();
+  if (state.debtFilter === 'i_owe') debts = debts.filter(d => d.direction === 'i_owe');
+  else if (state.debtFilter === 'owed_to_me') debts = debts.filter(d => d.direction === 'owed_to_me');
+  else if (state.debtFilter === 'overdue') debts = debts.filter(d => debtStatus(d) === 'overdue');
+  debts.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
+
+  document.querySelectorAll('.debt-filter-btn').forEach(b => {
+    const active = b.dataset.debtFilter === state.debtFilter;
+    b.className = 'debt-filter-btn px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap ' + (active ? 'bg-white dark:bg-slate-900 shadow-sm text-brand-700 dark:text-brand-400' : 'text-slate-500 dark:text-slate-400');
+  });
+
+  const list = document.getElementById('debtList');
+  if (!debts.length) { list.innerHTML = `<div class="sm:col-span-2">${emptyState(t('emptyDebts'), 'receipt')}</div>`; lucide.createIcons(); return; }
+  list.innerHTML = debts.map(d => {
+    const isMine = d.direction === 'owed_to_me';
+    const rem = debtRemaining(d), paid = debtPaid(d);
+    const pct = d.amount > 0 ? Math.min(100, Math.round((paid/d.amount)*100)) : 0;
+    const status = debtStatus(d);
+    const dueDays = d.dueDate ? daysBetween(today(), d.dueDate) : null;
+    return `
+      <div onclick="openDebtView('${d.id}')" class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-5 cursor-pointer hover:border-brand-300 dark:hover:border-brand-700">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isMine?'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400':'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}"><i data-lucide="${isMine?'hand-coins':'receipt'}" class="w-5 h-5"></i></div>
+            <div class="min-w-0"><div class="font-bold truncate">${escapeHtml(d.person)}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${t(isMine?'debtOut':'debtIn')}</div></div>
+          </div>
+          ${statusChip(status)}
+        </div>
+        <div class="flex items-end justify-between mb-3">
+          <div><div class="text-2xl font-extrabold">${fmtMoney(rem)}</div><div class="text-xs text-slate-500 dark:text-slate-400">${t('remaining')} ${t('of')} ${fmtMoney(d.amount)}</div></div>
+        </div>
+        <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div class="h-full ${isMine?'bg-sky-500':'bg-amber-500'} rounded-full transition-all" style="width:${pct}%"></div></div>
+        <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-2">
+          <span>${t('pdfPaid')}: ${fmtMoney(paid)}</span>
+          <span>${t('due')}: ${fmtDate(d.dueDate)}${dueDays !== null && dueDays >= 0 && status !== 'paid' ? ` (${dueDays} ${t('daysUnit')})` : ''}</span>
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function renderLeaves() {
+  const total = state.data.annualLeaveDays;
+  const used = state.data.leaves.reduce((s,l) => s + leaveDays(l), 0);
+  const remaining = Math.max(0, total - used);
+  const pct = total > 0 ? Math.min(100, Math.round((used/total)*100)) : 0;
+  document.getElementById('leaveRemaining').textContent = remaining;
+  document.getElementById('leaveUsed').textContent = used;
+  document.getElementById('leaveTotal').textContent = total;
+  document.getElementById('leaveProgress').style.width = pct + '%';
+  const upcoming = state.data.leaves.filter(l => leaveStatus(l) !== 'past');
+  const past = state.data.leaves.filter(l => leaveStatus(l) === 'past');
+  document.getElementById('leaveUpcomingCount').textContent = upcoming.length;
+
+  const card = (l) => {
+    const status = leaveStatus(l);
+    const days = leaveDays(l);
+    const cls = status === 'current' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+      : status === 'upcoming' ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
+      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
+    return `
+      <div class="card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-4 flex items-center gap-3 group">
+        <div class="w-12 h-12 rounded-xl ${cls} flex items-center justify-center shrink-0"><i data-lucide="calendar-days" class="w-5 h-5"></i></div>
+        <div class="flex-1 min-w-0"><div class="font-semibold truncate">${escapeHtml(l.note || '—')}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${fmtDate(l.startDate)} → ${fmtDate(l.endDate)} · ${days} ${t('daysUnit')}</div></div>
+        <div class="flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <button onclick="openLeaveModal('${l.id}')" class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+          <button onclick="deleteLeave('${l.id}')" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/30"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        </div>
+      </div>`;
+  };
+  document.getElementById('leaveUpcoming').innerHTML = upcoming.length ? upcoming.map(card).join('') : emptyState(t('emptyLeaves'), 'calendar');
+  document.getElementById('leavePast').innerHTML = past.length ? past.map(card).join('') : emptyState(t('emptyLeaves'), 'calendar');
+  lucide.createIcons();
+}
+
+function emptyState(msg, icon) {
+  return `<div class="p-10 text-center text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700"><i data-lucide="${icon}" class="w-10 h-10 mx-auto mb-2 opacity-60"></i><p class="text-sm">${escapeHtml(msg)}</p></div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NOTIFICATIONS ENGINE (SMART)
+══════════════════════════════════════════════════════════════ */
+function generateNotifications() {
+  const notifs = [];
+  const prefs = state.data.notificationPrefs || { enabled: true, debts: true, leaves: true, financial: true };
+  if (!prefs.enabled) return notifs;
+  const td = today();
+  const tomorrow = addDaysStr(td, 1);
+  const in2Days = addDaysStr(td, 2);
+
+  // Debts
+  if (prefs.debts) {
+    state.data.debts.forEach(d => {
+      const rem = debtRemaining(d);
+      if (rem <= 0) return;
+      const status = debtStatus(d);
+      const daysUntil = d.dueDate ? daysBetween(td, d.dueDate) : null;
+
+      if (status === 'overdue') {
+        const overdueDays = Math.abs(daysUntil);
+        notifs.push({
+          id: `debt-overdue-${d.id}`, type:'debt-overdue', priority:'high',
+          icon:'alert-triangle', color:'rose',
+          title: t('notifDebtOverdue'),
+          body: `${d.person} — ${fmtMoney(rem)} · ${tf('overdueBy', overdueDays)}`,
+          debtId: d.id
+        });
+      } else if (d.dueDate) {
+        if (daysUntil === 0) {
+          notifs.push({ id:`debt-today-${d.id}`, type:'debt-today', priority:'high', icon:'alarm-clock', color:'rose',
+            title: t('notifDebtToday'), body:`${d.person} — ${fmtMoney(rem)}`, debtId:d.id });
+        } else if (daysUntil === 1) {
+          notifs.push({ id:`debt-tomorrow-${d.id}`, type:'debt-tomorrow', priority:'high', icon:'alarm-clock', color:'amber',
+            title: t('notifDebtTomorrow'), body:`${d.person} — ${fmtMoney(rem)}`, debtId:d.id });
+        } else if (daysUntil === 2) {
+          notifs.push({ id:`debt-2days-${d.id}`, type:'debt-2days', priority:'high', icon:'bell-ring', color:'amber',
+            title: t('notifDebt2Days'), body:`${d.person} — ${fmtMoney(rem)}`, debtId:d.id });
+        } else if (daysUntil <= 7) {
+          notifs.push({ id:`debt-soon-${d.id}`, type:'debt-soon', priority:'medium', icon:'clock', color:'sky',
+            title: tf('notifDebtSoon', daysUntil), body:`${d.person} — ${fmtMoney(rem)}`, debtId:d.id });
+        }
+      }
+    });
+  }
+
+  // Leaves
+  if (prefs.leaves) {
+    state.data.leaves.forEach(l => {
+      const status = leaveStatus(l);
+      if (status !== 'upcoming') return;
+      const daysUntil = daysBetween(td, l.startDate);
+      if (daysUntil === 0) {
+        notifs.push({ id:`leave-today-${l.id}`, type:'leave-today', priority:'high', icon:'plane', color:'violet',
+          title: t('notifLeaveTomorrow'), body: l.note || fmtDate(l.startDate) });
+      } else if (daysUntil === 1) {
+        notifs.push({ id:`leave-tomorrow-${l.id}`, type:'leave-tomorrow', priority:'high', icon:'plane', color:'violet',
+          title: t('notifLeaveTomorrow'), body: l.note || fmtDate(l.startDate) });
+      } else if (daysUntil <= 7) {
+        notifs.push({ id:`leave-soon-${l.id}`, type:'leave-soon', priority:'medium', icon:'palmtree', color:'violet',
+          title: tf('notifLeaveSoon', daysUntil), body: l.note || fmtDate(l.startDate) });
+      }
+    });
+  }
+
+  // Financial warnings
+  if (prefs.financial) {
+    const pos = calcPosition();
+    if (pos.netWorth < 0) {
+      notifs.push({ id:'fin-negative', type:'fin-negative', priority:'high', icon:'trending-down', color:'rose',
+        title: t('notifNegativeNetWorth'), body: fmtMoney(Math.abs(pos.netWorth)) });
+    }
+    if (pos.cash > 0 && pos.payable > pos.cash * 0.7) {
+      notifs.push({ id:'fin-high-debt', type:'fin-high-debt', priority:'high', icon:'alert-octagon', color:'amber',
+        title: t('notifHighDebtRatio'), body: `${fmtMoney(pos.payable)} / ${fmtMoney(pos.cash)}` });
+    }
+    if (pos.monthlyNet < 0) {
+      notifs.push({ id:'fin-neg-month', type:'fin-neg-month', priority:'medium', icon:'trending-down', color:'amber',
+        title: t('notifNegativeMonth'), body: fmtMoney(Math.abs(pos.monthlyNet)) });
+    }
+  }
+
+  const prOrder = { high:0, medium:1, low:2 };
+  notifs.sort((a,b) => prOrder[a.priority] - prOrder[b.priority]);
+  return notifs;
+}
+
+function renderNotifs() {
+  const notifs = generateNotifications();
+  const dot = document.getElementById('notifDot');
+  if (dot) {
+    if (notifs.length) { dot.classList.remove('hidden'); dot.textContent = notifs.length > 9 ? '9+' : notifs.length; }
+    else dot.classList.add('hidden');
+  }
+  const badge = document.getElementById('notifCountBadge');
+  if (badge) { badge.textContent = notifs.length; badge.classList.toggle('hidden', !notifs.length); }
+
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (!notifs.length) { list.innerHTML = `<div class="text-center text-slate-400 py-8 text-sm">${t('noNotifications')}</div>`; return; }
+
+  const colorMap = {
+    rose: { bg:'bg-rose-50 dark:bg-rose-900/20', text:'text-rose-600 dark:text-rose-400', border:'border-rose-200/60 dark:border-rose-900/40' },
+    amber: { bg:'bg-amber-50 dark:bg-amber-900/20', text:'text-amber-600 dark:text-amber-400', border:'border-amber-200/60 dark:border-amber-900/40' },
+    sky: { bg:'bg-sky-50 dark:bg-sky-900/20', text:'text-sky-600 dark:text-sky-400', border:'border-sky-200/60 dark:border-sky-900/40' },
+    violet: { bg:'bg-violet-50 dark:bg-violet-900/20', text:'text-violet-600 dark:text-violet-400', border:'border-violet-200/60 dark:border-violet-900/40' }
+  };
+  const priorityLabel = { high: t('priorityHigh'), medium: t('priorityMedium'), low: t('priorityLow') };
+  const priorityChip = {
+    high: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    low: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+  };
+
+  list.innerHTML = notifs.map(n => {
+    const c = colorMap[n.color] || colorMap.sky;
+    const clickable = n.debtId;
+    return `
+      <div ${clickable ? `onclick="closeModal('modal-notifs');if(state.debtsUnlocked)openDebtView('${n.debtId}');else requestDebtsUnlock()"` : ''}
+           class="notif-item p-3 rounded-xl border ${c.border} ${c.bg} ${clickable?'cursor-pointer':''}">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-lg ${c.bg} ${c.text} flex items-center justify-center shrink-0"><i data-lucide="${n.icon}" class="w-5 h-5"></i></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-0.5">
+              <span class="font-semibold text-sm">${n.title}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${priorityChip[n.priority]}">${priorityLabel[n.priority]}</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400">${escapeHtml(n.body)}</p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function openNotifs() { renderNotifs(); openModal('modal-notifs'); }
+
+/* ══════════════════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════════════════ */
+let pieChart, barChart;
+function chartColors() { const dark = document.documentElement.classList.contains('dark'); return { text: dark ? '#cbd5e1' : '#475569', grid: dark ? 'rgba(148,163,184,0.12)' : 'rgba(148,163,184,0.18)' }; }
+function updateCharts() {
+  const view = document.getElementById('view-stats');
+  if (!view || view.classList.contains('hidden')) return;
+  const c = chartColors();
+  const nf = new Intl.NumberFormat(locale());
+  const font = state.lang === 'ar' ? 'Cairo' : 'Inter';
+  const catMap = {};
+  state.data.transactions.filter(x=>x.type==='expense').forEach(x => { catMap[x.category] = (catMap[x.category]||0) + Number(x.amount); });
+  const pieLabels = Object.keys(catMap).map(k => t(k));
+  const pieData = Object.values(catMap);
+  const palette = ['#10b981','#6366f1','#f59e0b','#ec4899','#06b6d4','#8b5cf6','#ef4444','#14b8a6'];
+  const pieCtx = document.getElementById('pieChart');
+  if (pieCtx) {
+    if (pieChart) pieChart.destroy();
+    if (pieData.length) pieChart = new Chart(pieCtx, { type:'doughnut', data:{ labels:pieLabels, datasets:[{ data:pieData, backgroundColor:palette, borderWidth:0, hoverOffset:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
+        plugins:{ legend:{ position:'bottom', rtl:state.lang==='ar', labels:{ color:c.text, font:{ family:font, size:12 }, padding:12, boxWidth:10, boxHeight:10, usePointStyle:true } },
+          tooltip:{ rtl:state.lang==='ar', callbacks:{ label: ctx => ` ${ctx.label}: ${nf.format(ctx.parsed)} د.ج` } } } } });
+    else pieCtx.getContext('2d').clearRect(0,0,pieCtx.width,pieCtx.height);
+  }
+  const months = i18n[state.lang].monthsShort;
+  const incomeByM = {}, expenseByM = {};
+  state.data.transactions.forEach(x => {
+    const m = (x.date||'').slice(0,7); if (!m) return;
+    if (x.type === 'income') incomeByM[m] = (incomeByM[m]||0) + Number(x.amount);
+    else expenseByM[m] = (expenseByM[m]||0) + Number(x.amount);
+  });
+  const now = new Date();
+  const labels = [], incomeSeries = [], expenseSeries = [];
+  for (let i = 5; i >= 0; i--) {
+    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
+    labels.push(months[dt.getMonth()]);
+    incomeSeries.push(incomeByM[key] || 0);
+    expenseSeries.push(expenseByM[key] || 0);
+  }
+  const barCtx = document.getElementById('barChart');
+  if (barCtx) {
+    if (barChart) barChart.destroy();
+    barChart = new Chart(barCtx, { type:'bar', data:{ labels, datasets:[
+      { label:t('income'), data:incomeSeries, backgroundColor:'#10b981', borderRadius:6, maxBarThickness:22 },
+      { label:t('expense'), data:expenseSeries, backgroundColor:'#f43f5e', borderRadius:6, maxBarThickness:22 }
+    ]}, options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', rtl:state.lang==='ar', labels:{ color:c.text, usePointStyle:true, boxWidth:8, boxHeight:8, font:{ family:font, size:12 } } },
+        tooltip:{ rtl:state.lang==='ar', callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${nf.format(ctx.parsed.y)} د.ج` } } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ color:c.text, font:{ family:font } } },
+        y:{ rtl:state.lang==='ar', position:state.lang==='ar'?'right':'left', grid:{ color:c.grid }, ticks:{ color:c.text, font:{ family:font }, callback: v => nf.format(v) } } } } });
+  }
+  const summary = document.getElementById('catSummary');
+  if (summary) {
+    summary.innerHTML = Object.entries(catMap).map(([k,v], i) => `
+      <div class="card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 p-3">
+        <div class="flex items-center gap-2 mb-1"><span class="w-2.5 h-2.5 rounded-full" style="background:${palette[i%palette.length]}"></span><span class="text-xs text-slate-500 dark:text-slate-400 truncate">${t(k)}</span></div>
+        <div class="font-bold text-sm">${fmtMoney(v)}</div>
+      </div>`).join('');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Number to words
+══════════════════════════════════════════════════════════════ */
+function toWords(num, lang) { num = Math.floor(Math.abs(Number(num)||0)); return lang === 'ar' ? arWords(num) : lang === 'fr' ? frWords(num) : enWords(num); }
+function arWords(num) {
+  if (num === 0) return 'صفر';
+  const ones = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة'];
+  const teens = ['عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'];
+  const tens = ['','عشرة','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'];
+  const hundreds = ['','مئة','مئتان','ثلاثمئة','أربعمئة','خمسمئة','ستمئة','سبعمئة','ثمانمئة','تسعمئة'];
+  function u1000(n) {
+    const w = [], h = Math.floor(n/100), r = n%100;
+    if (h > 0) w.push(hundreds[h]);
+    if (r > 0) { if (r < 10) w.push(ones[r]); else if (r < 20) w.push(teens[r-10]); else { const u = r%10, tt = Math.floor(r/10); w.push(u>0 ? ones[u] + ' و' + tens[tt] : tens[tt]); } }
+    return w.join(' و');
+  }
+  const p = [];
+  const mil = Math.floor(num/1000000), tho = Math.floor((num%1000000)/1000), rem = num%1000;
+  if (mil > 0) { if (mil === 1) p.push('مليون'); else if (mil === 2) p.push('مليونان'); else if (mil <= 10) p.push(u1000(mil) + ' ملايين'); else p.push(u1000(mil) + ' مليون'); }
+  if (tho > 0) { if (tho === 1) p.push('ألف'); else if (tho === 2) p.push('ألفان'); else if (tho <= 10) p.push(u1000(tho) + ' آلاف'); else p.push(u1000(tho) + ' ألف'); }
+  if (rem > 0) p.push(u1000(rem));
+  return p.join(' و');
+}
+function enWords(num) {
+  const ones = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  const tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+  function u1000(n) { if (n === 0) return ''; if (n < 20) return ones[n]; if (n < 100) { const u = n%10, tt = Math.floor(n/10); return tens[tt] + (u>0?'-'+ones[u]:''); } const h = Math.floor(n/100), r = n%100; return ones[h] + ' hundred' + (r>0?' and '+u1000(r):''); }
+  if (num === 0) return 'zero';
+  const p = [];
+  const mil = Math.floor(num/1000000), tho = Math.floor((num%1000000)/1000), rem = num%1000;
+  if (mil > 0) p.push(u1000(mil) + ' million');
+  if (tho > 0) p.push(u1000(tho) + ' thousand');
+  if (rem > 0) p.push(u1000(rem));
+  return p.join(' ');
+}
+function frWords(num) {
+  const ones = ['','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+  const tens = ['','','vingt','trente','quarante','cinquante','soixante','soixante-dix','quatre-vingt','quatre-vingt-dix'];
+  function u1000(n) { if (n === 0) return ''; if (n < 20) return ones[n]; if (n < 100) { const u = n%10, tt = Math.floor(n/10); if (tt === 7 || tt === 9) return tens[tt-1] + '-' + ones[10+u]; return tens[tt] + (u>0?'-'+ones[u]:''); } const h = Math.floor(n/100), r = n%100; return (h === 1 ? 'cent' : ones[h] + ' cent') + (r>0?' '+u1000(r):''); }
+  if (num === 0) return 'zéro';
+  const p = [];
+  const mil = Math.floor(num/1000000), tho = Math.floor((num%1000000)/1000), rem = num%1000;
+  if (mil > 0) p.push(u1000(mil) + ' million' + (mil>1?'s':''));
+  if (tho > 0) p.push(tho === 1 ? 'mille' : u1000(tho) + ' mille');
+  if (rem > 0) p.push(u1000(rem));
+  return p.join(' ');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PDF PRINT
+══════════════════════════════════════════════════════════════ */
+function openDebtPrint(id) {
+  const d = state.data.debts.find(x => x.id === id);
+  if (!d) return;
+  const isMine = d.direction === 'owed_to_me';
+  const paid = debtPaid(d), remaining = debtRemaining(d);
+  const creditorName = isMine ? (state.data.fullName || state.data.userName) : d.person;
+  const debtorName = isMine ? d.person : (state.data.fullName || state.data.userName);
+  const creditorId = isMine ? '' : (d.personId || '');
+  const debtorId = isMine ? (d.personId || '') : '';
+  const docRef = `MZN-${d.id.slice(-6).toUpperCase()}-${new Date().getFullYear()}`;
+
+  const paymentsRows = (d.payments||[]).length
+    ? d.payments.slice().sort((a,b)=>a.date.localeCompare(b.date)).map((p, i) => `
+        <tr>
+          <td style="border:1px solid #94a3b8;padding:6px 8px;text-align:center;font-size:11px">${i+1}</td>
+          <td style="border:1px solid #94a3b8;padding:6px 8px;font-size:11px">${fmtDate(p.date)}</td>
+          <td style="border:1px solid #94a3b8;padding:6px 8px;text-align:end;font-size:11px">${fmtMoney(p.amount)}</td>
+          <td style="border:1px solid #94a3b8;padding:6px 8px;font-size:11px">${escapeHtml(p.note || '—')}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="4" style="border:1px solid #94a3b8;padding:10px;text-align:center;color:#94a3b8;font-size:11px">${t('pdfNoPayments')}</td></tr>`;
+
+  const declaration = tf('pdfDeclarationText', creditorName, debtorName, fmtMoney(d.amount), t('pdfCurrency'), fmtDate(d.startDate), fmtDate(d.dueDate) || '—');
+
+  const html = `
+    <div dir="${state.lang==='ar'?'rtl':'ltr'}" style="max-width:190mm;margin:0 auto;font-family:'Amiri','Cairo',serif;color:#0f172a">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2.5px solid #059669;margin-bottom:18px">
+        <div>
+          <div style="font-size:24px;font-weight:800;color:#059669;letter-spacing:-.5px">${t('pdfTitle')}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:3px">${escapeHtml(state.data.userName)} · ${t('appName')}</div>
+        </div>
+        <div style="text-align:end;font-size:11px;color:#64748b;line-height:1.5">
+          <div><strong style="color:#334155">${t('pdfRef')}:</strong> ${docRef}</div>
+          <div><strong style="color:#334155">${t('pdfDate')}:</strong> ${fmtDate(today())}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="border:1.5px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#f8fafc">
+          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${t('pdfCreditor')}</div>
+          <div style="font-weight:700;font-size:15px">${escapeHtml(creditorName)}</div>
+          ${creditorId ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${t('pdfIdNumber')}: ${escapeHtml(creditorId)}</div>` : ''}
+        </div>
+        <div style="border:1.5px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#f8fafc">
+          <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${t('pdfDebtor')}</div>
+          <div style="font-weight:700;font-size:15px">${escapeHtml(debtorName)}</div>
+          ${debtorId ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${t('pdfIdNumber')}: ${escapeHtml(debtorId)}</div>` : ''}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:13px">
+        <tbody>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700;width:38%">${t('pdfAmountLabel')}</td><td style="border:1px solid #94a3b8;padding:8px 10px;font-weight:800;font-size:15px;color:#065f46">${fmtMoney(d.amount)}</td></tr>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfAmountWords')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${toWords(d.amount, state.lang)} ${t('pdfCurrency')}</td></tr>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfCreatedDate')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${fmtDate(d.startDate)}</td></tr>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfDueDate')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${fmtDate(d.dueDate) || '—'}</td></tr>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfPaid')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${fmtMoney(paid)}</td></tr>
+          <tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#fef2f2;font-weight:700">${t('pdfRemaining')}</td><td style="border:1px solid #94a3b8;padding:8px 10px;font-weight:800;color:#b91c1c;font-size:15px">${fmtMoney(remaining)}</td></tr>
+          ${d.reason?`<tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfReason')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${escapeHtml(d.reason)}</td></tr>`:''}
+          ${d.notes?`<tr><td style="border:1px solid #94a3b8;padding:8px 10px;background:#ecfdf5;font-weight:700">${t('pdfTerms')}</td><td style="border:1px solid #94a3b8;padding:8px 10px">${escapeHtml(d.notes)}</td></tr>`:''}
+        </tbody>
+      </table>
+      <div style="margin-bottom:14px">
+        <div style="font-weight:700;margin-bottom:5px;font-size:13px;color:#334155">${t('pdfPaymentsTable')}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#e2e8f0">
+            <th style="border:1px solid #94a3b8;padding:6px 8px">${t('pdfPaymentNum')}</th>
+            <th style="border:1px solid #94a3b8;padding:6px 8px">${t('pdfPaymentDate')}</th>
+            <th style="border:1px solid #94a3b8;padding:6px 8px">${t('pdfPaymentAmount')}</th>
+            <th style="border:1px solid #94a3b8;padding:6px 8px">${t('pdfPaymentNote')}</th>
+          </tr></thead>
+          <tbody>${paymentsRows}</tbody>
+        </table>
+      </div>
+      <div style="margin-bottom:16px;padding:10px 12px;border:1px solid #94a3b8;border-radius:6px;background:#fafafa">
+        <div style="font-weight:700;margin-bottom:5px;font-size:12px;color:#334155">${t('pdfDeclaration')}</div>
+        <p style="margin:0;font-size:12.5px;line-height:1.8">${declaration}</p>
+        <p style="margin:8px 0 0 0;font-size:12.5px;line-height:1.8">${t('pdfBothAgree')}</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:26px">
+        <div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">${t('pdfCreditor')} — ${t('pdfSignature')}</div>
+          <div class="doc-sign-line"></div>
+          <div style="font-size:10px;color:#64748b;margin-top:4px">${t('pdfName')}: ${escapeHtml(creditorName)}</div>
+          <div style="font-size:10px;color:#64748b">${t('pdfSignDate')}: ____________________</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;margin-bottom:2px">${t('pdfDebtor')} — ${t('pdfSignature')}</div>
+          <div class="doc-sign-line"></div>
+          <div style="font-size:10px;color:#64748b;margin-top:4px">${t('pdfName')}: ${escapeHtml(debtorName)}</div>
+          <div style="font-size:10px;color:#64748b">${t('pdfSignDate')}: ____________________</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px">
+        <div><div style="font-size:11px;font-weight:700;margin-bottom:2px">${t('pdfWitness')} 1</div><div class="doc-sign-line"></div><div style="font-size:10px;color:#64748b;margin-top:4px">${t('pdfName')}: ____________________</div></div>
+        <div><div style="font-size:11px;font-weight:700;margin-bottom:2px">${t('pdfWitness')} 2</div><div class="doc-sign-line"></div><div style="font-size:10px;color:#64748b;margin-top:4px">${t('pdfName')}: ____________________</div></div>
+      </div>
+      <div style="margin-top:20px;padding-top:8px;border-top:1px solid #cbd5e1;font-size:9.5px;color:#94a3b8;text-align:center;line-height:1.5">
+        <div>${docRef} · ${fmtDate(today())}</div>
+        <div style="margin-top:3px">${t('pdfDisclaimer')}</div>
+      </div>
+    </div>`;
+  document.getElementById('printContent').innerHTML = html;
+  closeModal('modal-debt-view');
+  openModal('modal-print');
+}
+function printNow() {
+  document.body.classList.add('printing');
+  setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove('printing'), 200); }, 120);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════════════════════ */
+function openSettings() {
+  document.getElementById('setFullName').value = state.data.fullName || state.data.userName || '';
+  document.getElementById('setOpening').value = state.data.openingBalance;
+  document.getElementById('setAnnualLeave').value = state.data.annualLeaveDays;
+  document.getElementById('setRememberPwd').checked = !!state.lock.rememberPassword;
+  document.getElementById('setNotifications').checked = state.data.notificationPrefs?.enabled !== false;
+  updateSettingsLockLabels();
+  openModal('modal-settings');
+}
+function saveSettings() {
+  state.data.fullName = document.getElementById('setFullName').value.trim();
+  state.data.openingBalance = parseFloat(document.getElementById('setOpening').value) || 0;
+  state.data.annualLeaveDays = parseInt(document.getElementById('setAnnualLeave').value) || 30;
+
+  const remember = document.getElementById('setRememberPwd').checked;
+  state.lock.rememberPassword = remember;
+  if (!remember) localStorage.removeItem(LS_REMEMBER);
+  saveLock();
+
+  state.data.notificationPrefs = state.data.notificationPrefs || {};
+  state.data.notificationPrefs.enabled = document.getElementById('setNotifications').checked;
+
+  saveData();
+  closeModal('modal-settings');
+  renderAll();
+  updateCharts();
+  toast(t('savedOk'));
+}
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({ data: state.data, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mizan-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('JSON ✓');
+}
+function exportCSV() {
+  const headers = state.lang === 'ar' ? ['النوع','المبلغ','التصنيف','الملاحظة','التاريخ'] : state.lang === 'fr' ? ['Type','Montant','Catégorie','Note','Date'] : ['Type','Amount','Category','Note','Date'];
+  const rows = state.data.transactions.map(x => [t(x.type), x.amount, t(x.category), x.note || '', x.date]);
+  const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `transactions-${today()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV ✓');
+}
+function resetAll() {
+  confirmAction(t('resetAll'), t('confirmResetMsg'), () => {
+    localStorage.removeItem(LS_DATA);
+    loadData();
+    renderAll();
+    updateCharts();
+    toast(t('deletedOk'));
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+(async function init() {
+  loadData();
+  loadLock();
+  applyTheme();
+  applyTranslations();
+  renderNav();
+
+  setTimeout(() => {
+    lucide.createIcons();
+    if (!state.lock || !state.lock.setup) {
+      // First launch → setup flow (name → method → site → debts)
+      showSetup();
+    } else {
+      // Remembered password → auto-enter
+      const remembered = localStorage.getItem(LS_REMEMBER) === '1';
+      if (state.lock.rememberPassword && remembered) {
+        document.getElementById('screen-loading').classList.add('hidden');
+        enterApp();
+      } else {
+        showUnlock();
+      }
+    }
+  }, 300);
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[onclick*="toggleMenu"]')) {
+      document.querySelectorAll('[id^="langMenu"]').forEach(x => x.classList.add('hidden'));
+    }
+  });
+})();
+</script>
+</body>
+</html>
